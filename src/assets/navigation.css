@@ -1,0 +1,230 @@
+/* 导航栏样式文件 - 毛玻璃主题 */
+
+/* 导航容器样式 */
+* {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  outline: none;
+  text-decoration: none;
+}
+
+.navigation {
+  display: flex;
+  width: 100vw;
+  height: 60px;
+  position: fixed;
+  z-index: 999;
+  top: 0;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  margin-bottom: 0px;
+  background: linear-gradient(rgba(255, 255, 255, 0.3));
+  backdrop-filter: blur(13px);
+}
+
+/* Logo区域样式 */
+.logo {
+  width: 220px;
+  height: 100%;
+  position: absolute;
+  left: 5%;
+  justify-content: space-between;
+  display: flex;
+  align-items: center;
+}
+
+.logo img {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+}
+
+.logo span {
+  font-size: 22px;
+  font-weight: 1000;
+  letter-spacing: 2px;
+  color: #000;
+}
+
+/* 导航菜单样式 */
+.navigation ul {
+  width: 600px;
+  height: 100%;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  position: absolute;
+  right: 3%;
+}
+
+.navigation ul .li-box {
+  position: absolute;
+  bottom: 1px;
+  left: 0;
+  width: 20%;
+  height: 5px;
+  border-radius: 2px;
+  z-index: -999;
+  transition: .5s;
+}
+
+/* 默认位置样式 */
+.navigation ul .li-box.words {
+  left: 0;
+  background-color: red;
+}
+
+.navigation ul .li-box.sentence {
+  left: 20%;
+  background-color: orange;
+}
+
+.navigation ul .li-box.record {
+  left: 40%;
+  background-color: #8da1f8;
+}
+
+.navigation ul .li-box.browse {
+  left: 60%;
+  background-color: #ffb1b1;
+}
+
+.navigation ul .li-box.tasks {
+  left: 80%;
+  background-color: #7df88e;
+}
+
+/* 鼠标悬停效果 */
+.navigation ul li:nth-child(1):hover~.li-box {
+  left: 0;
+  background-color: red;
+}
+
+.navigation ul li:nth-child(2):hover~.li-box {
+  left: 20%;
+  background-color: orange;
+}
+
+.navigation ul li:nth-child(3):hover~.li-box {
+  left: 40%;
+  background-color: #8da1f8;
+}
+
+.navigation ul li:nth-child(4):hover~.li-box {
+  left: 60%;
+  background-color: #ffb1b1;
+}
+
+.navigation ul li:nth-child(5):hover~.li-box {
+  left: 80%;
+  background-color: #7df88e;
+}
+
+.navigation ul li {
+  width: 25vw;
+  text-align: center;
+}
+
+.navigation ul li a {
+  color: #000;
+  display: block;
+  width: 100%;
+  height: 100%;
+  line-height: 20px;
+  text-align: center;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.navigation ul li a:hover {
+  color: #000;
+}
+
+.navigation ul li a.active {
+  color: #000;
+  font-weight: 600;
+}
+
+/* 手机端适配样式 */
+@media (max-width: 768px) {
+  .navigation {
+    height: 50px;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.25);
+    justify-content: center; /* 居中logo */
+  }
+
+  .logo {
+    width: 180px;
+    position: relative; /* 改为相对定位，居中显示 */
+    left: auto;
+    justify-content: center;
+  }
+
+  .logo img {
+    width: 35px;
+    height: 35px;
+  }
+
+  .logo span {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 1px;
+  }
+
+  /* 隐藏导航菜单 */
+  .navigation ul {
+    display: none;
+  }
+}
+
+/* 小屏手机端适配样式 */
+@media (max-width: 480px) {
+  .navigation {
+    height: 48px;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.2);
+  }
+
+  .logo {
+    width: 150px;
+    left: 2%;
+  }
+
+  .logo img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .logo span {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .navigation ul {
+    width: 70%;
+    right: 1%;
+  }
+
+  .navigation ul .li-box {
+    height: 2px;
+    bottom: 1px;
+  }
+
+  .navigation ul li {
+    width: 18vw;
+  }
+
+  .navigation ul li a {
+    font-size: 12px;
+    line-height: 14px;
+    font-weight: 400;
+  }
+
+  .navigation ul li a.active {
+    font-weight: 600;
+  }
+} 
+

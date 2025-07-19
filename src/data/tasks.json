@@ -1,0 +1,22 @@
+{
+  "success": true,
+  "count": 2,
+  "data": [
+    {
+      "_id": "60d21b4667d0d8992e610c85",
+      "text": "学习单词X10",
+      "iscomplete": false,
+      "createdAt": "2023-11-01T08:00:00.000Z",
+      "updatedAt": "2023-11-01T08:00:00.000Z",
+      "__v": 0
+    },
+    {
+      "_id": "60d21b4667d0d8992e610c86", 
+      "text": "学习句子",
+      "iscomplete": true,
+      "createdAt": "2023-11-01T09:00:00.000Z",
+      "updatedAt": "2023-11-01T10:30:00.000Z",
+      "__v": 0
+    }
+  ]
+} 

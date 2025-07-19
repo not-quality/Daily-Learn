@@ -1,0 +1,27 @@
+@import './base.css';
+
+html, body {
+  overflow-x: hidden;
+  overflow-y: auto;
+  height: auto;
+  min-height: 100vh;
+}
+
+#app {
+  margin: 0 auto;
+  font-weight: normal;
+  min-height: 100vh;
+}
+
+/* 手机端隐藏滚动条 */
+@media (max-width: 768px) {
+  body::-webkit-scrollbar,
+  html::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, and Opera */
+  }
+
+  body, html {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}

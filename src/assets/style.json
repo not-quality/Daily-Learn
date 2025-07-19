@@ -1,0 +1,167 @@
+{
+    "design_system": {
+    "aesthetics": {
+    "style": "现代简约教育风格",
+    "visual_principles": [
+    "以功能性为核心，视觉元素服务于信息传达与教学场景需求",
+    "采用轻量化设计语言，线条简洁，无冗余装饰，突出内容本身",
+    "视觉流向遵循用户习惯（从左到右、从上到下），引导注意力自然聚焦关键信息",
+    "留白充足，避免元素拥挤，降低认知负荷，提升界面呼吸感"
+    ]
+    },
+    "structure": {
+    "layout_type": "三栏式模块化布局",
+    "regions": [
+    {
+    "region_name": "左侧导航区",
+    "position": "页面左侧（固定宽度）",
+    "content": "用户信息（头像、姓名、职位）、功能菜单（Dashboard、Courses、Exams 等，含图标 + 文字）、筛选控件（Select Year、Select School 下拉框）",
+    "characteristics": "背景色统一，选中项高亮显示，菜单层级清晰（一级菜单无嵌套）"
+    },
+    {
+    "region_name": "中间主内容区",
+    "position": "页面中部（自适应宽度，占比最大）",
+    "content": "顶部数据概览卡片（Courses、Classes、Students 数量统计）、核心功能模块（Weekly Course Schedule 时间轴表格，含课程名称、时间标签）",
+    "characteristics": "采用网格布局，模块间通过虚线分隔，内容区域背景为纯白色，增强信息可读性"
+    },
+    {
+    "region_name": "右侧辅助信息区",
+    "position": "页面右侧（固定宽度）",
+    "content": "日历组件（February 2024 月历，当前日期高亮）、事件列表（Upcoming Events，含事件名称、日期、时间、颜色标签）",
+    "characteristics": "信息密度适中，与主内容区视觉权重区分，作为功能补充"
+    }
+    ]
+    },
+    "color_palette": {
+    "base_colors": [
+    {
+    "name": "主背景色",
+    "description": "浅蓝灰色（#F0F5FF）",
+    "usage": "页面整体背景，营造柔和、专业的教育氛围"
+    },
+    {
+    "name": "内容区背景色",
+    "description": "纯白色（#FFFFFF）",
+    "usage": "中间主内容区、右侧事件列表卡片背景，突出内容清晰度"
+    },
+    {
+    "name": "文字主色",
+    "description": "深灰色（#333333）",
+    "usage": "正文文字、标题文字，确保高可读性"
+    },
+    {
+    "name": "文字辅助色",
+    "description": "中灰色（#666666）",
+    "usage": "次要信息文字（如时间标签、说明文字）"
+    }
+    ],
+    "functional_colors": [
+    {
+    "name": "导航高亮色",
+    "description": "深蓝色（#1E50B3）",
+    "usage": "左侧导航栏选中项背景、按钮激活状态"
+    },
+    {
+    "name": "课程区分色",
+    "description": [
+    "粉色（#FF7E9D）- Applied Science",
+    "紫色（#A084E8）- Technology",
+    "橙色（#FFB347）- UX Design",
+    "浅蓝色（#7ED6DF）- Artificial Intelligence",
+    "珊瑚橙（#FF9A8B）- Business Management"
+    ],
+    "usage": "课程表中不同学科区块填充色，直观区分课程类型"
+    },
+    {
+    "name": "事件标签色",
+    "description": [
+    "红色（#FF5252）- 作业提醒",
+    "橙色（#FF9800）- 考试提醒",
+    "黄色（#FFD600）- 工作坊",
+    "绿色（#4CAF50）- 会议"
+    ],
+    "usage": "右侧 Upcoming Events 中事件类型标识，通过颜色快速识别事件优先级"
+    }
+    ]
+    },
+    "typography": {
+    "font_family": "无衬线字体（如 Arial、Roboto）",
+    "font_hierarchy": [
+    {
+    "level": "页面主标题",
+    "style": "18-20px，粗体，深灰色（#333333）",
+    "usage": "区域标题（如 “Weekly Course Schedule”）"
+    },
+    {
+    "level": "模块标题",
+    "style": "16px，半粗体，深灰色（#333333）",
+    "usage": "数据卡片标题（如 “Courses”）、事件列表标题（如 “Upcoming Events”）"
+    },
+    {
+    "level": "正文内容",
+    "style": "14px，常规，深灰色（#333333）",
+    "usage": "课程名称、事件名称、菜单文字"
+    },
+    {
+    "level": "辅助文字",
+    "style": "12px，常规，中灰色（#666666）",
+    "usage": "时间标签（如 “09:30-11:20”）、说明文字"
+    },
+    {
+    "level": "数据数字",
+    "style": "24-28px，粗体，对应数据主题色（如 Courses 数字为粉色）",
+    "usage": "数据概览卡片中的核心数据（如 “5”“7”“120”）"
+    }
+    ],
+    "alignment": "全局左对齐，标题与内容边缘对齐，确保视觉秩序感",
+    "spacing": "行高 1.5-1.6，段落间距为字号的 1.2 倍，避免文字拥挤"
+    },
+    "core_components": [
+    {
+    "component_name": "导航菜单",
+    "function": "提供核心功能入口",
+    "design_features": [
+    "垂直排列，图标（线性简约风格）+ 文字组合，图标居左，文字居中",
+    "默认状态：浅灰文字 + 透明背景；选中状态：白色文字 + 深蓝色背景（#1E50B3）",
+    "菜单高度统一（约 40px），间距 10px，边缘无圆角"
+    ]
+    },
+    {
+    "component_name": "数据概览卡片",
+    "function": "展示关键指标数据",
+    "design_features": [
+    "卡片无边框，背景透明，仅通过图标和文字区分",
+    "顶部图标（彩色线性图标，与数据主题色一致），中部大字号数字，底部小字号标签文字",
+    "水平排列，等宽分布，间距 20px"
+    ]
+    },
+    {
+    "component_name": "课程表时间轴",
+    "function": "展示每周课程安排",
+    "design_features": [
+    "表格布局，左侧为时间轴（09:00-18:00，每小时一行），顶部为星期标签（Mon-Sun）",
+    "课程区块为圆角矩形（圆角半径 4px），填充对应学科颜色，内部文字为白色（14px，粗体）+ 时间标签（12px，白色半透明）",
+    "课程区块根据时长占比调整高度，时间轴与课程区块通过虚线网格分隔"
+    ]
+    },
+    {
+    "component_name": "日历组件",
+    "function": "展示日期与选择时间",
+    "design_features": [
+    "月历布局，顶部为月份标题（February 2024）+ 左右切换箭头，中间为星期标题（Mon-Sun），底部为日期网格",
+    "当前日期：深色背景（#333333）+ 白色文字，其他日期：灰色文字，无背景",
+    "日期单元格等大，正方形，内部文字居中"
+    ]
+    },
+    {
+    "component_name": "事件列表",
+    "function": "展示即将到来的任务与活动",
+    "design_features": [
+    "卡片式布局，白色背景，轻微阴影（0 2px 4px rgba (0,0,0,0.05)）",
+    "每项事件左侧为彩色标签条（宽度 4px，对应事件类型颜色），右侧为事件信息（名称 + 日期时间）",
+    "事件间距 8px，内部上下 padding 12px，左右 padding 16px"
+    ]
+    }
+    ]
+    }
+}
