@@ -34,7 +34,7 @@
       </div>
 
       <!-- 为移动端增加触摸滑动支持的日历包裹容器 -->
-      <div class="calendar-wrapper">
+      <div class="calendar-wrapper" ref="calendarWrapperRef">
         <div
           class="calendar-container"
           :style="calendarGridStyle"
@@ -250,7 +250,7 @@
 
 <script setup>
 // 引入 Vue 核心方法：用于定义响应式状态、计算属性和生命周期
-import { ref, computed, onMounted, onUnmounted, watch, markRaw } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, markRaw, nextTick } from 'vue'
 // 引入 dayjs 用于日期处理
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
@@ -345,6 +345,8 @@ const lastCalendarSwipeTime = ref(0)
 const CALENDAR_SWIPE_DEBOUNCE = 300
 // 响应式的gap值，根据屏幕大小自动调整
 const calendarGap = ref(20)
+// 引用calendar-wrapper元素，用于获取实际宽度
+const calendarWrapperRef = ref(null)
 
 // 计算日历网格的内联样式，用于控制滑动位移与过渡动画
 const calendarGridStyle = computed(() => {
@@ -549,9 +551,13 @@ const handleCalendarTouchEnd = () => {
 
   const deltaX = calendarSwipeCurrentX.value - calendarSwipeStartX.value
 
-  // 计算基于屏幕宽度的动态滑动阈值，统一不同分辨率下的滑动距离体验
-  const screenWidth = window.innerWidth || 375
-  const dynamicThreshold = screenWidth * CALENDAR_SWIPE_THRESHOLD
+  // 获取wrapper的实际宽度，用于准确计算滑动距离
+  // 使用wrapper的实际宽度而不是window.innerWidth，因为calendar-view有max-width限制
+  const wrapperWidth = calendarWrapperRef.value?.offsetWidth || window.innerWidth || 375
+  const gap = calendarGap.value
+
+  // 计算基于wrapper实际宽度的动态滑动阈值
+  const dynamicThreshold = wrapperWidth * CALENDAR_SWIPE_THRESHOLD
 
   // 未达到阈值时仅平滑回到原位，不触发月份切换，避免误操作
   if (Math.abs(deltaX) < dynamicThreshold || !isMobile.value || !isCalendarHorizontalSwipe.value) {
@@ -578,11 +584,18 @@ const handleCalendarTouchEnd = () => {
   if (isCalendarAnimating.value) return
   isCalendarAnimating.value = true
 
-  // 应用过渡动画让日历网格平滑回到中心位置，提升视觉体验
-  calendarGridTransition.value = `transform ${CALENDAR_SWIPE_DURATION}ms ease`
-  calendarGridTranslateX.value = 0
+  // 计算目标位移：一个日历单元的宽度 = wrapper实际宽度 + 2*gap
+  // 这个距离对应CSS中的 33.333% (相对于300%的container，等于100%的wrapper宽度)
+  // 偏移 20px 使得滑动距离更准确，避免因为滑动距离小于一个单元格宽度而导致的切换错误
+  const targetOffset = deltaX < 0
+    ? -(wrapperWidth + 2 * gap - 20)  // 左滑：向左滑动到下一月
+    : (wrapperWidth + 2 * gap - 20)   // 右滑：向右滑动到上一月
 
-  // 等待动画完成后切换月份
+  // 应用过渡动画，让日历滑动到目标位置
+  calendarGridTransition.value = `transform ${CALENDAR_SWIPE_DURATION}ms ease`
+  calendarGridTranslateX.value = targetOffset
+
+  // 等待动画完成后切换月份数据并重置位移
   setTimeout(() => {
     // 根据滑动方向切换月份：左滑切换到下一月，右滑切换到上一月
     if (deltaX < 0) {
@@ -591,10 +604,17 @@ const handleCalendarTouchEnd = () => {
       currentDate.value = currentDate.value.subtract(1, 'month')
     }
 
-    isCalendarAnimating.value = false
-    calendarGridTransition.value = ''
-    // 记录本次完成切换的时间戳，用于后续滑动防抖判断
-    lastCalendarSwipeTime.value = now
+    // 等待 Vue 完成 DOM 更新后再重置位移和过渡
+    // 此时新日历已渲染，重置位移到默认居中位置（offset=0）不会有跳动
+    nextTick(() => {
+      // 关闭过渡动画并重置位移到初始位置，准备下一次滑动
+      calendarGridTransition.value = ''
+      calendarGridTranslateX.value = 0
+      isCalendarAnimating.value = false
+
+      // 记录本次完成切换的时间戳，用于后续滑动防抖判断
+      lastCalendarSwipeTime.value = now
+    })
   }, CALENDAR_SWIPE_DURATION)
 }
 
