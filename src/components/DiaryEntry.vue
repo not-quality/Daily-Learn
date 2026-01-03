@@ -64,15 +64,15 @@
       </div>
     </div>
 
-    <!-- Markdown 工具栏 -->
+    <!-- Markdown 工具栏：包含标题、强调、链接、列表和引用等快捷按钮 -->
     <div class="markdown-toolbar">
       <button class="toolbar-btn" @click="insertMarkdownWithExample('## ', '', '标题')">H</button>
       <button class="toolbar-btn" @click="insertMarkdownWithExample('**', '**', '粗体')">B</button>
       <button class="toolbar-btn" @click="insertMarkdownWithExample('*', '*', '斜体')">I</button>
       <button class="toolbar-btn" @click="insertMarkdownWithExample('~~', '~~', '删除线')">S</button>
       <button class="toolbar-btn" @click="insertMarkdownWithExample('[', '](URL)', '链接')">🔗</button>
-      <button class="toolbar-btn" @click="insertMarkdown('- ')">☰</button>
-      <button class="toolbar-btn" @click="insertMarkdown('> ')">"</button>
+      <button class="toolbar-btn" @click="insertMarkdownWithExample('- ', '', '列表项')">☰</button>
+      <button class="toolbar-btn" @click="insertMarkdownWithExample('> ', '', '引用内容')">"</button>
     </div>
 
     <!-- 内容编辑区域 -->
@@ -275,6 +275,10 @@ const parseMarkdown = (text) => {
     .replace(/^-\s+(.*?)$/gm, '<li class="md-list-item">$1</li>')
     // 处理引用 (> 引用)
     .replace(/^>\s+(.*?)$/gm, '<blockquote class="md-quote">$1</blockquote>')
+    // 清除块级标签（标题、列表项、引用）后面紧跟的换行，避免额外 <br>
+    .replace(/<\/h([1-6])>\r?\n/g, '</h$1>')
+    .replace(/<\/li>\r?\n/g, '</li>')
+    .replace(/<\/blockquote>\r?\n/g, '</blockquote>')
     // 处理换行符
     .replace(/\n/g, '<br>')
     .trim()
@@ -979,7 +983,7 @@ onUnmounted(() => {
 /* Markdown样式 */
 :deep(.md-heading) {
   font-weight: 600;
-  margin: 1em 0 0.5em;
+  margin: 0.25em 0;
   line-height: 1.4;
 }
 
@@ -1006,14 +1010,23 @@ onUnmounted(() => {
 }
 
 :deep(.md-list-item) {
-  margin: 0.5em 0;
-  padding-left: 1em;
+  position: relative;
+  padding-left: 1.2em;
+}
+
+:deep(.md-list-item::before) {
+  content: '•';
+  position: absolute;
+  left: 0;
+  top: 0.2em;
+  font-size: 0.9em;
+  color: #333;
 }
 
 :deep(.md-quote) {
   border-left: 3px solid #ddd;
   padding-left: 1em;
-  margin: 1em 0;
+  margin: 0.25em 0;
   color: #666;
   font-style: italic;
 }
