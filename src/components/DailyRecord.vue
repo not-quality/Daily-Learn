@@ -33,71 +33,166 @@
         </el-icon>
       </div>
 
-      <!-- 为移动端增加触摸滑动支持的日历网格容器 -->
-      <div
-        class="calendar-grid"
-        :style="calendarGridStyle"
-        @touchstart="handleCalendarTouchStart"
-        @touchmove="handleCalendarTouchMove"
-        @touchend="handleCalendarTouchEnd"
-        @touchcancel="handleCalendarTouchEnd"
-      >
-        <!-- 星期标题 -->
-        <div class="weekdays">
-          <div v-for="day in weekdays" :key="day" class="weekday">{{ day }}</div>
-        </div>
-        
-        <!-- 日期网格 -->
-        <div class="dates-grid">
-          <!-- 上个月的日期（灰色显示） -->
-          <div 
-            v-for="date in previousMonthDates" 
-            :key="`prev-${date}`" 
-            class="date-cell prev-month"
-          >
-            <span class="date-number">{{ date }}</span>
-          </div>
-          
-          <!-- 当前月的日期 -->
-          <div 
-            v-for="date in currentMonthDates" 
-            :key="`current-${date}`" 
-            class="date-cell current-month"
-            :class="{ 
-              'selected': isSelectedDate(date), 
-              'today': isToday(date),
-              'disabled': isFutureDate(date) || isBeforeStartDate(date)
-            }"
-            @click="!isFutureDate(date) && !isBeforeStartDate(date) && selectDate(date)"
-          >
-            <!-- 当该日期存在日记内容时为日期数字添加高亮颜色提示 -->
-            <span 
-              class="date-number"
-              :class="{ 'date-number-has-content': hasContentForDate(date) }"
-            >
-              {{ date }}
-            </span>
-            <!-- 在日历单元格中的emoji -->
-            <div class="calendar-mood" v-if="getMoodForDate(date)">
-              {{ getMoodForDate(date) }}
+      <!-- 为移动端增加触摸滑动支持的日历包裹容器 -->
+      <div class="calendar-wrapper">
+        <div
+          class="calendar-container"
+          :style="calendarGridStyle"
+          @touchstart="handleCalendarTouchStart"
+          @touchmove="handleCalendarTouchMove"
+          @touchend="handleCalendarTouchEnd"
+          @touchcancel="handleCalendarTouchEnd"
+        >
+          <!-- 上个月日历 -->
+          <div class="calendar-grid">
+            <!-- 星期标题 -->
+            <div class="weekdays">
+              <div v-for="day in weekdays" :key="day" class="weekday">{{ day }}</div>
             </div>
-            <!-- 当该日期已有内容但未选择心情时，在日历单元格中显示问号提示 -->
-            <div
-              class="calendar-mood calendar-mood-question"
-              v-else-if="hasContentWithoutMood(date)"
-              title="该日记未选择心情"
-            >
-              ?
+
+            <!-- 日期网格 -->
+            <div class="dates-grid">
+              <!-- 上上个月的日期（灰色显示） -->
+              <div
+                v-for="date in prevCalendar.previousMonthDates"
+                :key="`prevprev-${date}`"
+                class="date-cell prev-month"
+              >
+                <span class="date-number">{{ date }}</span>
+              </div>
+
+              <!-- 上个月的日期 -->
+              <div
+                v-for="date in prevCalendar.currentMonthDates"
+                :key="`prev-${date}`"
+                class="date-cell current-month"
+                :class="{
+                  'disabled': true
+                }"
+              >
+                <span class="date-number">{{ date }}</span>
+                <!-- 上个月的emoji -->
+                <div class="calendar-mood" v-if="getMoodForDateInMonth(date, prevCalendar.date)">
+                  {{ getMoodForDateInMonth(date, prevCalendar.date) }}
+                </div>
+              </div>
+
+              <!-- 本月开头的日期（灰色显示） -->
+              <div
+                v-for="date in prevCalendar.nextMonthDates"
+                :key="`prevnext-${date}`"
+                class="date-cell next-month"
+              >
+                <span class="date-number">{{ date }}</span>
+              </div>
             </div>
           </div>
-          
-          <!-- 下个月的日期（灰色显示） -->
-          <div 
-            v-for="date in nextMonthDates" 
-            :key="`next-${date}`" 
-            class="date-cell next-month"
-          >
-            <span class="date-number">{{ date }}</span>
+
+          <!-- 当前月日历 -->
+          <div class="calendar-grid">
+            <!-- 星期标题 -->
+            <div class="weekdays">
+              <div v-for="day in weekdays" :key="day" class="weekday">{{ day }}</div>
+            </div>
+
+            <!-- 日期网格 -->
+            <div class="dates-grid">
+              <!-- 上个月的日期（灰色显示） -->
+              <div
+                v-for="date in previousMonthDates"
+                :key="`prev-${date}`"
+                class="date-cell prev-month"
+              >
+                <span class="date-number">{{ date }}</span>
+              </div>
+
+              <!-- 当前月的日期 -->
+              <div
+                v-for="date in currentMonthDates"
+                :key="`current-${date}`"
+                class="date-cell current-month"
+                :class="{
+                  'selected': isSelectedDate(date),
+                  'today': isToday(date),
+                  'disabled': isFutureDate(date) || isBeforeStartDate(date)
+                }"
+                @click="!isFutureDate(date) && !isBeforeStartDate(date) && selectDate(date)"
+              >
+                <!-- 当该日期存在日记内容时为日期数字添加高亮颜色提示 -->
+                <span
+                  class="date-number"
+                  :class="{ 'date-number-has-content': hasContentForDate(date) }"
+                >
+                  {{ date }}
+                </span>
+                <!-- 在日历单元格中的emoji -->
+                <div class="calendar-mood" v-if="getMoodForDate(date)">
+                  {{ getMoodForDate(date) }}
+                </div>
+                <!-- 当该日期已有内容但未选择心情时，在日历单元格中显示问号提示 -->
+                <div
+                  class="calendar-mood calendar-mood-question"
+                  v-else-if="hasContentWithoutMood(date)"
+                  title="该日记未选择心情"
+                >
+                  ?
+                </div>
+              </div>
+
+              <!-- 下个月的日期（灰色显示） -->
+              <div
+                v-for="date in nextMonthDates"
+                :key="`next-${date}`"
+                class="date-cell next-month"
+              >
+                <span class="date-number">{{ date }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 下个月日历 -->
+          <div class="calendar-grid">
+            <!-- 星期标题 -->
+            <div class="weekdays">
+              <div v-for="day in weekdays" :key="day" class="weekday">{{ day }}</div>
+            </div>
+
+            <!-- 日期网格 -->
+            <div class="dates-grid">
+              <!-- 本月末尾的日期（灰色显示） -->
+              <div
+                v-for="date in nextCalendar.previousMonthDates"
+                :key="`nextprev-${date}`"
+                class="date-cell prev-month"
+              >
+                <span class="date-number">{{ date }}</span>
+              </div>
+
+              <!-- 下个月的日期 -->
+              <div
+                v-for="date in nextCalendar.currentMonthDates"
+                :key="`next-${date}`"
+                class="date-cell current-month"
+                :class="{
+                  'disabled': true
+                }"
+              >
+                <span class="date-number">{{ date }}</span>
+                <!-- 下个月的emoji -->
+                <div class="calendar-mood" v-if="getMoodForDateInMonth(date, nextCalendar.date)">
+                  {{ getMoodForDateInMonth(date, nextCalendar.date) }}
+                </div>
+              </div>
+
+              <!-- 下下个月的日期（灰色显示） -->
+              <div
+                v-for="date in nextCalendar.nextMonthDates"
+                :key="`nextnext-${date}`"
+                class="date-cell next-month"
+              >
+                <span class="date-number">{{ date }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -248,11 +343,20 @@ const isCalendarHorizontalSwipe = ref(false)
 const lastCalendarSwipeTime = ref(0)
 // 常量：月份切换防抖时间，单位毫秒，避免连续误触
 const CALENDAR_SWIPE_DEBOUNCE = 300
+// 响应式的gap值，根据屏幕大小自动调整
+const calendarGap = ref(20)
 
 // 计算日历网格的内联样式，用于控制滑动位移与过渡动画
 const calendarGridStyle = computed(() => {
+  // 计算基础位移：一个日历的宽度(wrapper的100%) + 两个margin(各20px)
+  // 由于使用了百分比宽度,需要结合wrapper的实际宽度计算
+  const gap = calendarGap.value
+  const offset = calendarGridTranslateX.value
+
+  // 基础位移 = -100% - 2*gap (显示中间的日历)
+  // -100% 表示一个日历的宽度,-2*gap是左margin+右margin
   return {
-    transform: `translateX(${calendarGridTranslateX.value}px)`,
+    transform: `translateX(calc(-33.333% - ${2 * gap}px + ${offset}px))`,
     transition: calendarGridTransition.value
   }
 })
@@ -263,6 +367,69 @@ const currentMonthText = computed(() => {
   return currentDate.value.format('M月 YYYY')
 })
 
+// 计算指定日期所在月份的完整日历数据的辅助函数
+const getMonthCalendarData = (date) => {
+  const targetDate = dayjs(date)
+  const daysInMonth = targetDate.daysInMonth()
+
+  // 当月的所有日期
+  const currentMonthDates = Array.from({ length: daysInMonth }, (_, i) => i + 1)
+
+  // 上个月末尾需要显示的日期
+  const startOfMonth = targetDate.startOf('month')
+  const dayOfWeek = startOfMonth.day()
+  const adjustedDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek
+  const prevDaysToShow = adjustedDayOfWeek - 1
+
+  const prevMonth = targetDate.subtract(1, 'month')
+  const daysInPrevMonth = prevMonth.daysInMonth()
+  const previousMonthDates = prevDaysToShow === 0 ? [] : Array.from(
+    { length: prevDaysToShow },
+    (_, i) => daysInPrevMonth - prevDaysToShow + i + 1
+  )
+
+  // 下个月开头需要显示的日期
+  const endOfMonth = targetDate.endOf('month')
+  const endDayOfWeek = endOfMonth.day()
+  const adjustedEndDayOfWeek = endDayOfWeek === 0 ? 7 : endDayOfWeek
+  let nextDaysToShow = 7 - adjustedEndDayOfWeek
+  if (nextDaysToShow === 7) nextDaysToShow = 0
+
+  // 计算当前总天数
+  const totalDays = prevDaysToShow + daysInMonth + nextDaysToShow
+
+  // 如果总天数小于42（6行），需要继续添加下个月的日期
+  const CALENDAR_ROWS = 6
+  const CALENDAR_TOTAL_CELLS = CALENDAR_ROWS * 7 // 42
+
+  if (totalDays < CALENDAR_TOTAL_CELLS) {
+    nextDaysToShow += (CALENDAR_TOTAL_CELLS - totalDays)
+  }
+
+  const nextMonthDates = nextDaysToShow === 0 ? [] : Array.from({ length: nextDaysToShow }, (_, i) => i + 1)
+
+  return {
+    date: targetDate,
+    previousMonthDates,
+    currentMonthDates,
+    nextMonthDates
+  }
+}
+
+// 三个日历的数据:上个月、当前月、下个月
+const prevCalendar = computed(() => {
+  return getMonthCalendarData(currentDate.value.subtract(1, 'month'))
+})
+
+const currentCalendar = computed(() => {
+  return getMonthCalendarData(currentDate.value)
+})
+
+const nextCalendar = computed(() => {
+  return getMonthCalendarData(currentDate.value.add(1, 'month'))
+})
+
+// 保持原有的计算属性以兼容其他代码
 const currentMonthDates = computed(() => {
   const daysInMonth = currentDate.value.daysInMonth()
   return Array.from({ length: daysInMonth }, (_, i) => i + 1)
@@ -273,13 +440,13 @@ const previousMonthDates = computed(() => {
   const dayOfWeek = startOfMonth.day()
   const adjustedDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek
   const daysToShow = adjustedDayOfWeek - 1
-  
+
   if (daysToShow === 0) return []
-  
+
   const prevMonth = currentDate.value.subtract(1, 'month')
   const daysInPrevMonth = prevMonth.daysInMonth()
-  
-  return Array.from({ length: daysToShow }, (_, i) => 
+
+  return Array.from({ length: daysToShow }, (_, i) =>
     daysInPrevMonth - daysToShow + i + 1
   )
 })
@@ -288,10 +455,26 @@ const nextMonthDates = computed(() => {
   const endOfMonth = currentDate.value.endOf('month')
   const dayOfWeek = endOfMonth.day()
   const adjustedDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek
-  const daysToShow = 7 - adjustedDayOfWeek
-  
-  if (daysToShow === 7) return []
-  
+  let daysToShow = 7 - adjustedDayOfWeek
+  if (daysToShow === 7) daysToShow = 0
+
+  // 计算当前总天数
+  const daysInMonth = currentDate.value.daysInMonth()
+  const startOfMonth = currentDate.value.startOf('month')
+  const startDayOfWeek = startOfMonth.day()
+  const adjustedStartDayOfWeek = startDayOfWeek === 0 ? 7 : startDayOfWeek
+  const prevDaysToShow = adjustedStartDayOfWeek - 1
+
+  const totalDays = prevDaysToShow + daysInMonth + daysToShow
+
+  // 如果总天数小于42（6行），需要继续添加下个月的日期
+  const CALENDAR_TOTAL_CELLS = 42
+  if (totalDays < CALENDAR_TOTAL_CELLS) {
+    daysToShow += (CALENDAR_TOTAL_CELLS - totalDays)
+  }
+
+  if (daysToShow === 0) return []
+
   return Array.from({ length: daysToShow }, (_, i) => i + 1)
 })
 
@@ -374,6 +557,9 @@ const handleCalendarTouchEnd = () => {
   if (Math.abs(deltaX) < dynamicThreshold || !isMobile.value || !isCalendarHorizontalSwipe.value) {
     calendarGridTransition.value = 'transform 0.2s ease'
     calendarGridTranslateX.value = 0
+    setTimeout(() => {
+      calendarGridTransition.value = ''
+    }, 200)
     return
   }
 
@@ -382,6 +568,9 @@ const handleCalendarTouchEnd = () => {
   if (now - lastCalendarSwipeTime.value < CALENDAR_SWIPE_DEBOUNCE) {
     calendarGridTransition.value = 'transform 0.2s ease'
     calendarGridTranslateX.value = 0
+    setTimeout(() => {
+      calendarGridTransition.value = ''
+    }, 200)
     return
   }
 
@@ -389,23 +578,24 @@ const handleCalendarTouchEnd = () => {
   if (isCalendarAnimating.value) return
   isCalendarAnimating.value = true
 
-  // 根据滑动方向切换月份：左滑切换到下一月，右滑切换到上一月
-  if (deltaX < 0) {
-    nextMonth()
-  } else {
-    previousMonth()
-  }
-
   // 应用过渡动画让日历网格平滑回到中心位置，提升视觉体验
   calendarGridTransition.value = `transform ${CALENDAR_SWIPE_DURATION}ms ease`
   calendarGridTranslateX.value = 0
 
+  // 等待动画完成后切换月份
   setTimeout(() => {
-    isCalendarAnimating.value = false
-  }, CALENDAR_SWIPE_DURATION)
+    // 根据滑动方向切换月份：左滑切换到下一月，右滑切换到上一月
+    if (deltaX < 0) {
+      currentDate.value = currentDate.value.add(1, 'month')
+    } else {
+      currentDate.value = currentDate.value.subtract(1, 'month')
+    }
 
-  // 记录本次完成切换的时间戳，用于后续滑动防抖判断
-  lastCalendarSwipeTime.value = now
+    isCalendarAnimating.value = false
+    calendarGridTransition.value = ''
+    // 记录本次完成切换的时间戳，用于后续滑动防抖判断
+    lastCalendarSwipeTime.value = now
+  }, CALENDAR_SWIPE_DURATION)
 }
 
 // Markdown解析函数
@@ -482,11 +672,25 @@ const recentRecords = computed(() => {
 
 // 方法
 const previousMonth = () => {
+  // 如果正在动画中,忽略点击
+  if (isCalendarAnimating.value) return
+
+  // 改变月份,触发日历数据更新
   currentDate.value = currentDate.value.subtract(1, 'month')
+
+  // 重置位移
+  calendarGridTranslateX.value = 0
 }
 
 const nextMonth = () => {
+  // 如果正在动画中,忽略点击
+  if (isCalendarAnimating.value) return
+
+  // 改变月份,触发日历数据更新
   currentDate.value = currentDate.value.add(1, 'month')
+
+  // 重置位移
+  calendarGridTranslateX.value = 0
 }
 
 const selectDate = (date) => {
@@ -542,6 +746,12 @@ const isBeforeStartDate = (date) => {
 // 获取指定日期对应的心情表情，用于在日历单元格中展示emoji
 const getMoodForDate = (date) => {
   const dateKey = currentDate.value.date(date).format('YYYY-MM-DD')
+  return records.value[dateKey]?.mood || ''
+}
+
+// 获取指定月份中某个日期的心情
+const getMoodForDateInMonth = (date, monthDate) => {
+  const dateKey = dayjs(monthDate).date(date).format('YYYY-MM-DD')
   return records.value[dateKey]?.mood || ''
 }
 
@@ -636,9 +846,11 @@ watch(() => props.editingRecord, (newRecord) => {
 
 // 生命周期
 onMounted(() => {
-  // 移动端检测
+  // 移动端检测和gap值更新
   const updateIsMobile = () => {
     isMobile.value = window.innerWidth <= 768
+    // 根据屏幕宽度更新gap值
+    calendarGap.value = window.innerWidth <= 768 ? 10 : 20
   }
   updateIsMobile()
   window.addEventListener('resize', updateIsMobile)
@@ -741,16 +953,35 @@ const goToBrowse = () => {
   color: #333;
 }
 
-.calendar-grid {
-  background: white;
-  border-radius: 20px; /* 增加圆角 */
-  padding: 30px; /* 增加内边距 */
-  margin-bottom: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* 增强阴影 */
-  /* 限制内容溢出，确保滑动时只展示当前日历区域 */
+/* 日历包裹容器,作为视口,只显示一个日历的宽度 */
+.calendar-wrapper {
   overflow: hidden;
-  /* 提前声明 transform 参与合成，优化移动端滑动动画性能 */
+  width: 100%;
+  margin-bottom: 20px;
+  padding: 0 20px; /* 左右padding创建视觉间距 */
+}
+
+/* 日历容器,包含三个日历,横向排列 */
+.calendar-container {
+  display: flex;
+  width: 300%; /* 三个日历的总宽度 */
+  margin-left: -20px; /* 抵消wrapper的左padding */
+  /* transform 和 transition 由 JS 动态控制 */
+  /* 提前声明 transform 参与合成,优化移动端滑动动画性能 */
   will-change: transform;
+}
+
+.calendar-grid {
+  /* 每个日历占container的三分之一,即wrapper的100% */
+  flex: 0 0 33.333%;
+  width: 33.333%;
+  background: white;
+  border-radius: 20px;
+  padding: 30px;
+  margin: 0 20px; /* 左右边距创建间隙 */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .weekdays {
@@ -1460,7 +1691,19 @@ const goToBrowse = () => {
     font-size: 20px;
   }
 
+  /* 移动端调整wrapper的padding */
+  .calendar-wrapper {
+    padding: 0 10px;
+  }
+
+  /* 移动端调整container的margin */
+  .calendar-container {
+    margin-left: -10px;
+  }
+
+  /* 移动端减小日历间距 */
   .calendar-grid {
+    margin: 0 10px;
     padding: 16px;
     border-radius: 16px;
   }
