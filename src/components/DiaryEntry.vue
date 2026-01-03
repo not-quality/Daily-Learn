@@ -612,18 +612,13 @@ const handleBack = () => {
   emit('back', props.sourceView)
 }
 
-// 手机端返回键处理
+// 手机端返回键处理 - 等价于点击保存按钮
 const handleBackButton = (event) => {
   // 阻止默认的返回行为
   event.preventDefault()
 
-  // 自动保存当前内容
-  if (currentRecord.value.content.trim() || currentRecord.value.mood) {
-    emit('save', currentRecord.value)
-  }
-
-  // 返回到上一个页面（通常是record页面）
-  emit('back')
+  // 调用 saveAndReturn,与点击保存按钮行为一致
+  saveAndReturn()
 }
 
 // 监听props变化

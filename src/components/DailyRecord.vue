@@ -979,7 +979,7 @@ const goToBrowse = () => {
   border-radius: 20px;
   padding: 30px;
   margin: 0 20px; /* 左右边距创建间隙 */
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.025);
   overflow: hidden;
   box-sizing: border-box;
 }
