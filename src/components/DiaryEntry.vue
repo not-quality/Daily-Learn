@@ -1,105 +1,222 @@
 <template>
-  <div class="diary-entry">
-    <!-- 顶部导航 -->
-    <div class="editor-header">
-      <el-icon class="back-btn" @click="handleBack">
-        <ArrowLeft />
-      </el-icon>
-      <div class="editor-actions">
-        <el-icon class="save-btn" @click="saveAndReturn">
-          <Check />
-        </el-icon>
-      </div>
-    </div>
-
-    <!-- 图片上传区域 -->
-    <div class="image-upload-area">
-      <!-- 已上传的图片预览 - 覆盖整个区域 -->
-      <div v-if="currentRecord.images && currentRecord.images.length > 0" class="uploaded-images-full">
-        <div 
-          v-for="image in currentRecord.images" 
-          :key="image.id"
-          class="image-preview-full"
-          @click="viewImageFullscreen(image)"
-        >
-          <img :src="image.data" :alt="image.name" />
-          <div class="image-actions">
-            <el-icon class="delete-image-btn" @click.stop="removeImage(image.id)">
-              <Delete />
+  <!-- 日记包裹容器，作为视口 -->
+  <div class="diary-wrapper" ref="diaryWrapperRef">
+    <!-- 日记容器，包含三个日记页面 -->
+    <div
+      class="diary-container"
+      :style="diaryContainerStyle"
+      @touchstart="handleDiaryTouchStart"
+      @touchmove="handleDiaryTouchMove"
+      @touchend="handleDiaryTouchEnd"
+      @touchcancel="handleDiaryTouchEnd"
+    >
+      <!-- 前一天的日记(只读显示) -->
+      <div class="diary-page prev-page">
+        <div class="editor-header">
+          <el-icon class="back-btn" @click="handleBack">
+            <ArrowLeft />
+          </el-icon>
+          <div class="editor-actions">
+            <el-icon class="save-btn" @click="saveAndReturn">
+              <Check />
             </el-icon>
           </div>
         </div>
+
+        <!-- 图片预览区域 -->
+        <div class="image-upload-area">
+          <div v-if="prevRecord.images && prevRecord.images.length > 0" class="uploaded-images-full">
+            <div
+              v-for="image in prevRecord.images"
+              :key="image.id"
+              class="image-preview-full"
+            >
+              <img :src="image.data" :alt="image.name" />
+            </div>
+          </div>
+          <div v-else class="upload-placeholder">
+            <div class="placeholder-text">无图片</div>
+          </div>
+        </div>
+
+        <div class="date-display">{{ formatEditorDate(prevDate) }}</div>
+
+        <div class="mood-selector">
+          <div v-for="mood in moodOptions" :key="mood" class="mood-option">
+            <div class="mood-emoji">{{ mood }}</div>
+            <div class="mood-indicator" :class="{ active: prevRecord.mood === mood }"></div>
+          </div>
+        </div>
+
+        <!-- Markdown 工具栏占位符 - 保持布局一致性 -->
+        <div class="markdown-toolbar toolbar-placeholder">
+          <div class="toolbar-btn">H</div>
+          <div class="toolbar-btn">B</div>
+          <div class="toolbar-btn">I</div>
+          <div class="toolbar-btn">S</div>
+          <div class="toolbar-btn">🔗</div>
+          <div class="toolbar-btn">☰</div>
+          <div class="toolbar-btn">"</div>
+        </div>
+
+        <div class="content-preview-wrapper">
+          <div class="content-preview" v-html="parseMarkdown(prevRecord.content)" v-if="prevRecord.content">
+          </div>
+          <div class="content-placeholder" v-else>
+            暂无日记内容
+          </div>
+        </div>
       </div>
-      
-      <!-- 上传按钮 - 只在没有图片时显示 -->
-      <div v-else class="upload-buttons">
-        <el-icon class="upload-icon" @click="openCamera" title="拍照">
-          <Camera />
-        </el-icon>
-        <el-icon class="upload-icon" @click="selectImage" title="选择图片">
-          <Picture />
-        </el-icon>
+
+      <!-- 当天的日记(可编辑) -->
+      <div class="diary-page current-page">
+        <div class="editor-header">
+          <el-icon class="back-btn" @click="handleBack">
+            <ArrowLeft />
+          </el-icon>
+          <div class="editor-actions">
+            <el-icon class="save-btn" @click="saveAndReturn">
+              <Check />
+            </el-icon>
+          </div>
+        </div>
+
+        <!-- 图片上传区域 -->
+        <div class="image-upload-area">
+          <div v-if="currentRecord.images && currentRecord.images.length > 0" class="uploaded-images-full">
+            <div
+              v-for="image in currentRecord.images"
+              :key="image.id"
+              class="image-preview-full"
+              @click="viewImageFullscreen(image)"
+            >
+              <img :src="image.data" :alt="image.name" />
+              <div class="image-actions">
+                <el-icon class="delete-image-btn" @click.stop="removeImage(image.id)">
+                  <Delete />
+                </el-icon>
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="upload-buttons">
+            <el-icon class="upload-icon" @click="openCamera" title="拍照">
+              <Camera />
+            </el-icon>
+            <el-icon class="upload-icon" @click="selectImage" title="选择图片">
+              <Picture />
+            </el-icon>
+          </div>
+        </div>
+
+        <div class="date-display">{{ formatEditorDate(currentDateValue) }}</div>
+
+        <div class="mood-selector">
+          <div
+            v-for="mood in moodOptions"
+            :key="mood"
+            class="mood-option"
+            @click="toggleMood(mood)"
+          >
+            <div class="mood-emoji">{{ mood }}</div>
+            <div class="mood-indicator" :class="{ active: currentRecord.mood === mood }"></div>
+          </div>
+        </div>
+
+        <div class="markdown-toolbar">
+          <button class="toolbar-btn" @click="insertMarkdownWithExample('## ', '', '标题')">H</button>
+          <button class="toolbar-btn" @click="insertMarkdownWithExample('**', '**', '粗体')">B</button>
+          <button class="toolbar-btn" @click="insertMarkdownWithExample('*', '*', '斜体')">I</button>
+          <button class="toolbar-btn" @click="insertMarkdownWithExample('~~', '~~', '删除线')">S</button>
+          <button class="toolbar-btn" @click="insertMarkdownWithExample('[', '](URL)', '链接')">🔗</button>
+          <button class="toolbar-btn" @click="insertMarkdownWithExample('- ', '', '列表项')">☰</button>
+          <button class="toolbar-btn" @click="insertMarkdownWithExample('> ', '', '引用内容')">"</button>
+        </div>
+
+        <div class="content-editor">
+          <el-icon
+            class="content-edit-btn"
+            :class="{ 'is-editing': isEditing }"
+            @click="toggleEditing"
+          >
+            <Edit />
+          </el-icon>
+          <el-icon class="template-btn-icon" @click="showTemplates = !showTemplates">
+            <Document />
+          </el-icon>
+          <textarea
+            v-if="isEditing"
+            ref="contentTextarea"
+            v-model="currentRecord.content"
+            class="content-input"
+            :placeholder="placeholder"
+            @input="updatePreview"
+          ></textarea>
+          <div
+            v-else
+            class="content-preview"
+            v-html="parseMarkdown(currentRecord.content)"
+          ></div>
+        </div>
       </div>
-    </div>
 
-    <!-- 日期显示 -->
-    <div class="date-display">
-      {{ formatEditorDate(selectedDate) }}
-    </div>
+      <!-- 后一天的日记(只读显示) -->
+      <div class="diary-page next-page">
+        <div class="editor-header">
+          <el-icon class="back-btn" @click="handleBack">
+            <ArrowLeft />
+          </el-icon>
+          <div class="editor-actions">
+            <el-icon class="save-btn" @click="saveAndReturn">
+              <Check />
+            </el-icon>
+          </div>
+        </div>
 
-    <!-- 心情选择 -->
-    <div class="mood-selector">
-      <!-- 心情选项点击后支持二次点击取消选中，提升选择灵活性 -->
-      <div
-        v-for="mood in moodOptions"
-        :key="mood"
-        class="mood-option"
-        @click="toggleMood(mood)"
-      >
-        <div class="mood-emoji">{{ mood }}</div>
-        <div
-          class="mood-indicator"
-          :class="{ active: currentRecord.mood === mood }"
-        ></div>
+        <!-- 图片预览区域 -->
+        <div class="image-upload-area">
+          <div v-if="nextRecord.images && nextRecord.images.length > 0" class="uploaded-images-full">
+            <div
+              v-for="image in nextRecord.images"
+              :key="image.id"
+              class="image-preview-full"
+            >
+              <img :src="image.data" :alt="image.name" />
+            </div>
+          </div>
+          <div v-else class="upload-placeholder">
+            <div class="placeholder-text">无图片</div>
+          </div>
+        </div>
+
+        <div class="date-display">{{ formatEditorDate(nextDate) }}</div>
+
+        <div class="mood-selector">
+          <div v-for="mood in moodOptions" :key="mood" class="mood-option">
+            <div class="mood-emoji">{{ mood }}</div>
+            <div class="mood-indicator" :class="{ active: nextRecord.mood === mood }"></div>
+          </div>
+        </div>
+
+        <!-- Markdown 工具栏占位符 - 保持布局一致性 -->
+        <div class="markdown-toolbar toolbar-placeholder">
+          <div class="toolbar-btn">H</div>
+          <div class="toolbar-btn">B</div>
+          <div class="toolbar-btn">I</div>
+          <div class="toolbar-btn">S</div>
+          <div class="toolbar-btn">🔗</div>
+          <div class="toolbar-btn">☰</div>
+          <div class="toolbar-btn">"</div>
+        </div>
+
+        <div class="content-preview-wrapper">
+          <div class="content-preview" v-html="parseMarkdown(nextRecord.content)" v-if="nextRecord.content">
+          </div>
+          <div class="content-placeholder" v-else>
+            暂无日记内容
+          </div>
+        </div>
       </div>
-    </div>
-
-    <!-- Markdown 工具栏：包含标题、强调、链接、列表和引用等快捷按钮 -->
-    <div class="markdown-toolbar">
-      <button class="toolbar-btn" @click="insertMarkdownWithExample('## ', '', '标题')">H</button>
-      <button class="toolbar-btn" @click="insertMarkdownWithExample('**', '**', '粗体')">B</button>
-      <button class="toolbar-btn" @click="insertMarkdownWithExample('*', '*', '斜体')">I</button>
-      <button class="toolbar-btn" @click="insertMarkdownWithExample('~~', '~~', '删除线')">S</button>
-      <button class="toolbar-btn" @click="insertMarkdownWithExample('[', '](URL)', '链接')">🔗</button>
-      <button class="toolbar-btn" @click="insertMarkdownWithExample('- ', '', '列表项')">☰</button>
-      <button class="toolbar-btn" @click="insertMarkdownWithExample('> ', '', '引用内容')">"</button>
-    </div>
-
-    <!-- 内容编辑区域 -->
-    <div class="content-editor">
-      <el-icon 
-        class="content-edit-btn" 
-        :class="{ 'is-editing': isEditing }"
-        @click="toggleEditing"
-      >
-        <Edit />
-      </el-icon>
-      <el-icon class="template-btn-icon" @click="showTemplates = !showTemplates">
-        <Document />
-      </el-icon>
-      <textarea 
-        v-if="isEditing"
-        ref="contentTextarea"
-        v-model="currentRecord.content"
-        class="content-input"
-        :placeholder="placeholder"
-        @input="updatePreview"
-      ></textarea>
-      <div 
-        v-else
-        class="content-preview"
-        v-html="parseMarkdown(currentRecord.content)"
-      ></div>
     </div>
 
     <!-- 模板选择弹窗 -->
@@ -152,14 +269,14 @@
     <div v-if="showNewTemplate" class="new-template-modal" @click="showNewTemplate = false">
       <div class="new-template-content" @click.stop>
         <h3>{{ isEditingTemplate ? '编辑模板' : '新建模板' }}</h3>
-        <input 
-          v-model="newTemplateName" 
-          placeholder="模板名称" 
+        <input
+          v-model="newTemplateName"
+          placeholder="模板名称"
           class="template-input"
         />
-        <textarea 
-          v-model="newTemplateContent" 
-          placeholder="模板内容" 
+        <textarea
+          v-model="newTemplateContent"
+          placeholder="模板内容"
           class="template-content-input"
         ></textarea>
         <div class="template-actions">
@@ -214,8 +331,76 @@ const showNewTemplate = ref(false)
 const contentTextarea = ref(null)
 const fullscreenImage = ref(null)
 
-// 当前记录
-const currentRecord = ref({ ...props.recordData })
+// 触摸手势相关数据（参考日历视图）
+const diaryContainerTranslateX = ref(0)
+const diaryContainerTransition = ref('')
+const isDiarySwiping = ref(false)
+const diarySwipeStartX = ref(0)
+const diarySwipeCurrentX = ref(0)
+const isDiaryAnimating = ref(false)
+const diarySwipeStartY = ref(0)
+const diarySwipeCurrentY = ref(0)
+const isDiarySwipeDirectionLocked = ref(false)
+const isDiaryHorizontalSwipe = ref(false)
+const lastDiarySwipeTime = ref(0)
+const DIARY_SWIPE_THRESHOLD = 0.2 // 滑动阈值比例
+const DIARY_SWIPE_DURATION = 300 // 动画时长
+const DIARY_SWIPE_DEBOUNCE = 300 // 防抖时间
+const diaryGap = ref(0) // 页面间距
+const diaryWrapperRef = ref(null)
+
+// 三个日期：前一天、当天、后一天
+const prevDate = computed(() => props.selectedDate.subtract(1, 'day'))
+const currentDateValue = computed(() => props.selectedDate)
+const nextDate = computed(() => props.selectedDate.add(1, 'day'))
+
+// 从localStorage加载日记数据
+const loadRecordForDate = (date) => {
+  try {
+    const records = JSON.parse(localStorage.getItem('daily-records') || '{}')
+    const dateKey = date.format('YYYY-MM-DD')
+    return records[dateKey] || {
+      id: dateKey,
+      date: date.toISOString(),
+      mood: '',
+      content: '',
+      images: []
+    }
+  } catch (error) {
+    console.error('加载日记失败:', error)
+    return {
+      id: date.format('YYYY-MM-DD'),
+      date: date.toISOString(),
+      mood: '',
+      content: '',
+      images: []
+    }
+  }
+}
+
+// 三个页面的数据（使用ref，中间页面可编辑，两侧只读显示）
+const prevRecord = ref(loadRecordForDate(prevDate.value))
+const currentRecord = ref(loadRecordForDate(currentDateValue.value))
+const nextRecord = ref(loadRecordForDate(nextDate.value))
+
+// 当props.selectedDate变化时，重新加载三个页面的数据
+watch(() => props.selectedDate, () => {
+  prevRecord.value = loadRecordForDate(prevDate.value)
+  currentRecord.value = loadRecordForDate(currentDateValue.value)
+  nextRecord.value = loadRecordForDate(nextDate.value)
+}, { immediate: true })
+
+// 日记容器样式 - 控制滑动动画
+const diaryContainerStyle = computed(() => {
+  const gap = diaryGap.value
+  const offset = diaryContainerTranslateX.value
+
+  // 基础位移 = -33.333% - 2*gap (显示中间的页面)
+  return {
+    transform: `translateX(calc(-33.333% - ${2 * gap}px + ${offset}px))`,
+    transition: diaryContainerTransition.value
+  }
+})
 
 // 模板相关
 const templates = ref([])
@@ -583,6 +768,150 @@ const deleteTemplate = (templateId) => {
   }
 }
 
+// 触摸手势处理 - 三页面滑动逻辑
+const handleDiaryTouchStart = (event) => {
+  if (isDiaryAnimating.value || isEditing.value) return
+
+  const touch = event.touches && event.touches[0]
+  if (!touch) return
+
+  isDiarySwiping.value = true
+  diarySwipeStartX.value = touch.clientX
+  diarySwipeCurrentX.value = touch.clientX
+  diarySwipeStartY.value = touch.clientY
+  diarySwipeCurrentY.value = touch.clientY
+  isDiarySwipeDirectionLocked.value = false
+  isDiaryHorizontalSwipe.value = false
+  diaryContainerTransition.value = ''
+}
+
+const handleDiaryTouchMove = (event) => {
+  if (!isDiarySwiping.value || isDiaryAnimating.value || isEditing.value) return
+
+  const touch = event.touches && event.touches[0]
+  if (!touch) return
+
+  diarySwipeCurrentX.value = touch.clientX
+  diarySwipeCurrentY.value = touch.clientY
+
+  if (!isDiarySwipeDirectionLocked.value) {
+    const diffX = diarySwipeCurrentX.value - diarySwipeStartX.value
+    const diffY = diarySwipeCurrentY.value - diarySwipeStartY.value
+    const MIN_DETECT_DISTANCE = 10
+
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > MIN_DETECT_DISTANCE) {
+      isDiarySwipeDirectionLocked.value = true
+      isDiaryHorizontalSwipe.value = true
+    } else if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > MIN_DETECT_DISTANCE) {
+      isDiarySwipeDirectionLocked.value = true
+      isDiaryHorizontalSwipe.value = false
+      isDiarySwiping.value = false
+      return
+    }
+  }
+
+  if (!isDiaryHorizontalSwipe.value) return
+
+  event.preventDefault()
+  const deltaX = diarySwipeCurrentX.value - diarySwipeStartX.value
+
+  // 检查日期边界：不能滑动到未来日期
+  const today = dayjs()
+  const isToday = currentDateValue.value.isSame(today, 'day')
+  const isFuture = currentDateValue.value.isAfter(today, 'day')
+
+  // 如果是今天或未来日期，且尝试左滑（切换到明天），则完全禁止滑动
+  if ((isToday || isFuture) && deltaX < 0) {
+    diaryContainerTranslateX.value = 0
+    return
+  }
+
+  diaryContainerTranslateX.value = deltaX
+}
+
+const handleDiaryTouchEnd = () => {
+  if (!isDiarySwiping.value) return
+  isDiarySwiping.value = false
+
+  const deltaX = diarySwipeCurrentX.value - diarySwipeStartX.value
+  const wrapperWidth = diaryWrapperRef.value?.offsetWidth || window.innerWidth
+  const gap = diaryGap.value
+  const dynamicThreshold = wrapperWidth * DIARY_SWIPE_THRESHOLD
+
+  // 检查日期边界：不能滑动到未来日期
+  const today = dayjs()
+  const isToday = currentDateValue.value.isSame(today, 'day')
+  const isFuture = currentDateValue.value.isAfter(today, 'day')
+
+  // 如果是今天或未来日期，且尝试左滑到明天，则禁止切换
+  if ((isToday || isFuture) && deltaX < 0) {
+    diaryContainerTransition.value = 'transform 0.3s ease'
+    diaryContainerTranslateX.value = 0
+    setTimeout(() => {
+      diaryContainerTransition.value = ''
+    }, 300)
+    return
+  }
+
+  if (Math.abs(deltaX) < dynamicThreshold || !isDiaryHorizontalSwipe.value) {
+    diaryContainerTransition.value = 'transform 0.2s ease'
+    diaryContainerTranslateX.value = 0
+    setTimeout(() => {
+      diaryContainerTransition.value = ''
+    }, 200)
+    return
+  }
+
+  const now = Date.now()
+  if (now - lastDiarySwipeTime.value < DIARY_SWIPE_DEBOUNCE) {
+    diaryContainerTransition.value = 'transform 0.2s ease'
+    diaryContainerTranslateX.value = 0
+    setTimeout(() => {
+      diaryContainerTransition.value = ''
+    }, 200)
+    return
+  }
+
+  if (isDiaryAnimating.value) return
+  isDiaryAnimating.value = true
+
+  const targetOffset = deltaX < 0
+    ? -(wrapperWidth + 2 * gap)
+    : (wrapperWidth + 2 * gap)
+
+  diaryContainerTransition.value = `transform ${DIARY_SWIPE_DURATION}ms ease`
+  diaryContainerTranslateX.value = targetOffset
+
+  setTimeout(() => {
+    // 先保存当前记录
+    if (currentRecord.value.content.trim() || currentRecord.value.mood) {
+      saveRecord()
+    }
+
+    // 切换日期
+    if (deltaX < 0) {
+      // 左滑，切换到后一天
+      emit('changePage', 'diaryEntry', {
+        date: nextDate.value,
+        sourceView: props.sourceView
+      })
+    } else {
+      // 右滑，切换到前一天
+      emit('changePage', 'diaryEntry', {
+        date: prevDate.value,
+        sourceView: props.sourceView
+      })
+    }
+
+    nextTick(() => {
+      diaryContainerTransition.value = ''
+      diaryContainerTranslateX.value = 0
+      isDiaryAnimating.value = false
+      lastDiarySwipeTime.value = now
+    })
+  }, DIARY_SWIPE_DURATION)
+}
+
 // 保存和返回功能
 const saveRecord = () => {
   // 设置记录ID和日期
@@ -626,12 +955,19 @@ watch(() => props.recordData, (newData) => {
   currentRecord.value = { ...newData }
 }, { deep: true })
 
-
+// 移动端检测和gap值更新
+const updateIsMobile = () => {
+  diaryGap.value = window.innerWidth <= 768 ? 0 : 0 // 日记页面不需要gap
+}
 
 // 生命周期
 onMounted(() => {
   // 加载模板
   loadTemplates()
+
+  // 初始化gap值并监听窗口大小变化
+  updateIsMobile()
+  window.addEventListener('resize', updateIsMobile)
 
   // 添加history state，确保返回键能被拦截
   history.pushState({ page: 'diary-entry' }, '', '')
@@ -645,14 +981,66 @@ onUnmounted(() => {
   // 清理事件监听器
   window.removeEventListener('popstate', handleBackButton)
   document.removeEventListener('backbutton', handleBackButton, false)
+  window.removeEventListener('resize', updateIsMobile)
 })
 </script>
 
 <style scoped>
-.diary-entry {
+/* 日记包裹容器 - 视口 */
+.diary-wrapper {
+  overflow: hidden;
+  width: 100%;
   min-height: 100vh;
   background-color: #F0F5FF;
+}
+
+/* 日记容器 - 包含三个页面 */
+.diary-container {
+  display: flex;
+  width: 300%;
+  will-change: transform;
+}
+
+/* 单个日记页面 */
+.diary-page {
+  flex: 0 0 33.333%;
+  width: 33.333%;
+  min-height: 100vh;
   padding-bottom: 20px;
+  box-sizing: border-box;
+}
+
+/* 前后页面只读样式 */
+.prev-page, .next-page {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* 工具栏占位符 - 保持布局一致性但不可交互 */
+.toolbar-placeholder {
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+.toolbar-placeholder .toolbar-btn {
+  cursor: default;
+  background: #f5f5f5;
+}
+
+.content-preview-wrapper {
+  background: white;
+  margin: 0 16px;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-height: 500px;
+}
+
+.content-placeholder {
+  color: #999;
+  text-align: center;
+  padding: 50px 20px;
+  font-size: 16px;
 }
 
 /* 编辑器头部 */
@@ -708,6 +1096,20 @@ onUnmounted(() => {
   justify-content: center;
   padding: 20px;
   gap: 20px;
+}
+
+.upload-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.placeholder-text {
+  color: #999;
+  font-size: 14px;
+  opacity: 0.6;
 }
 
 .uploaded-images-full {
@@ -914,7 +1316,7 @@ onUnmounted(() => {
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   position: relative;
-  min-height: 300px;
+  min-height: 500px;
 }
 
 .content-edit-btn, .template-btn-icon {
@@ -962,7 +1364,7 @@ onUnmounted(() => {
   line-height: 1.8;
   color: #333;
   resize: none;
-  min-height: 200px;
+  min-height: 450px;
   font-family: inherit;
   background: transparent;
 }
@@ -971,7 +1373,7 @@ onUnmounted(() => {
   font-size: 16px;
   line-height: 1.8;
   color: #333;
-  min-height: 200px;
+  min-height: 450px;
   word-wrap: break-word;
 }
 
@@ -1368,6 +1770,10 @@ onUnmounted(() => {
 
 /* 手机端适配 */
 @media (max-width: 768px) {
+  .diary-page {
+    margin: 0;
+  }
+
   .editor-header {
     padding: 12px 16px;
   }
@@ -1382,6 +1788,10 @@ onUnmounted(() => {
     margin: 12px;
     min-height: 180px;
     padding: 15px;
+  }
+
+  .placeholder-text {
+    font-size: 12px;
   }
 
   .image-preview-full {
@@ -1434,7 +1844,7 @@ onUnmounted(() => {
   .content-editor {
     margin: 0 12px;
     padding: 16px;
-    min-height: 250px;
+    min-height: 400px;
   }
 
   .content-edit-btn, .template-btn-icon {
@@ -1455,7 +1865,12 @@ onUnmounted(() => {
 
   .content-input, .content-preview {
     font-size: 14px;
-    min-height: 150px;
+    min-height: 350px;
+  }
+
+  .content-preview-wrapper {
+    margin: 0 12px;
+    min-height: 400px;
   }
 
   .templates-content {

@@ -119,6 +119,7 @@
       :sourceView="diaryEntryData.sourceView"
       @save="handleDiarySave"
       @back="handleDiaryBack"
+      @changePage="handleDiaryDateChange"
     />
 
     <!-- 日记汇总页面 -->
@@ -153,6 +154,9 @@
 <script setup>
 // Vue核心API导入
 import { ref, computed, onMounted, onUnmounted, watchEffect, markRaw } from 'vue'
+// 导入 dayjs 用于处理日期
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
 // Element Plus图标导入
 import {
   CirclePlus,
@@ -177,6 +181,9 @@ import DailyWords from './DailyWords.vue'
 import DailyRecord from './DailyRecord.vue'
 import DailyBrowse from './DailyBrowse.vue'
 import DiaryEntry from './DiaryEntry.vue'
+
+// 设置 dayjs 中文本地化
+dayjs.locale('zh-cn')
 
 
 // 页面切换状态
@@ -258,6 +265,32 @@ const handleDiaryBack = (sourceView) => {
     currentPage.value = 'browse'
   } else {
     currentPage.value = 'record'
+  }
+}
+
+// 处理日记日期切换（左右滑动切换）
+const handleDiaryDateChange = (page, data) => {
+  // 确保传入的是有效的 dayjs 对象
+  const newDate = dayjs.isDayjs(data.date) ? data.date : dayjs(data.date)
+
+  // 从localStorage获取对应日期的记录
+  const existingRecords = JSON.parse(localStorage.getItem('daily-records') || '{}')
+  const dateKey = newDate.format('YYYY-MM-DD')
+
+  // 获取该日期的记录，如果不存在则创建新记录
+  const recordData = existingRecords[dateKey] || {
+    id: dateKey,
+    date: newDate.toISOString(),
+    mood: '',
+    content: '',
+    images: []
+  }
+
+  // 更新日记编辑页面数据
+  diaryEntryData.value = {
+    recordData: recordData,
+    selectedDate: newDate,
+    sourceView: data.sourceView || 'record'
   }
 }
 
