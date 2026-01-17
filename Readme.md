@@ -122,6 +122,10 @@ Vue-Daily Learn/
   - 以 `vue_daily_words_CET4 / CET6` 为 key 存储各级别的单词学习进度
   - 以 `vue_daily_words_settings` 存储每组单词数量等学习设置
 - 提供「学习设置」弹窗，可调整每组单词数量，并支持「应用并重新开始」快速刷新一轮新学习
+- UI 稳定性优化（2025-01-17 更新）：
+  - 为 `word-card` 设置固定最小高度（桌面端 620px，平板端 580px，手机端 550px，小屏手机端 520px），避免选项内容换行时卡片跳动
+  - 使用 Flexbox 布局将答题按钮 `action-buttons` 固定在卡片底部，通过 `margin-top: auto` 实现自动对齐
+  - 无论选项内容如何变化，卡片高度和按钮位置始终保持稳定，提升答题体验
 
 ### DiaryEntry.vue
 

@@ -707,6 +707,9 @@ onMounted(() => {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   margin-bottom: 0;
   position: relative;
+  min-height: 620px; /* 设置最小高度，避免选项内容换行时卡片跳动 */
+  display: flex; /* 使用flex布局 */
+  flex-direction: column; /* 垂直方向布局 */
 }
 
 .word-header {
@@ -760,7 +763,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 15px;
-  margin-bottom: 30px;
+  margin-bottom: 20px; /* 减小底部间距 */
 }
 
 .option-item {
@@ -817,7 +820,7 @@ onMounted(() => {
 .action-buttons {
   display: flex;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-top: auto; /* 自动向底部对齐 */
 }
 
 .answer-btn {
@@ -1143,6 +1146,7 @@ onMounted(() => {
   .word-card {
     padding: 35px 25px;
     margin: 0;
+    min-height: 580px; /* 平板端最小高度 */
   }
   
   .completion-card {
@@ -1208,6 +1212,7 @@ onMounted(() => {
   .word-card {
     padding: 30px 20px;
     margin: 0;
+    min-height: 550px; /* 手机端最小高度 */
   }
   
   .word-header {
@@ -1342,6 +1347,7 @@ onMounted(() => {
   .word-card {
     padding: 25px 15px;
     margin: 0;
+    min-height: 520px; /* 小屏手机端最小高度 */
   }
   
   .word-header {
