@@ -585,11 +585,11 @@ const handleCalendarTouchEnd = () => {
   isCalendarAnimating.value = true
 
   // 计算目标位移：一个日历单元的宽度 = wrapper实际宽度 + 2*gap
-  // 这个距离对应CSS中的 33.333% (相对于300%的container，等于100%的wrapper宽度)
-  // 偏移 20px 使得滑动距离更准确，避免因为滑动距离小于一个单元格宽度而导致的切换错误
+  // 移动端gap为0（无margin），桌面端有gap需要额外偏移
+  const additionalOffset = gap > 0 ? 20 : 0
   const targetOffset = deltaX < 0
-    ? -(wrapperWidth + 2 * gap - 20)  // 左滑：向左滑动到下一月
-    : (wrapperWidth + 2 * gap - 20)   // 右滑：向右滑动到上一月
+    ? -(wrapperWidth + 2 * gap - additionalOffset)  // 左滑：向左滑动到下一月
+    : (wrapperWidth + 2 * gap - additionalOffset)   // 右滑：向右滑动到上一月
 
   // 应用过渡动画，让日历滑动到目标位置
   calendarGridTransition.value = `transform ${CALENDAR_SWIPE_DURATION}ms ease`
@@ -869,8 +869,8 @@ onMounted(() => {
   // 移动端检测和gap值更新
   const updateIsMobile = () => {
     isMobile.value = window.innerWidth <= 768
-    // 根据屏幕宽度更新gap值
-    calendarGap.value = window.innerWidth <= 768 ? 10 : 20
+    // 根据屏幕宽度更新gap值，移动端为0（因为已移除margin）
+    calendarGap.value = window.innerWidth <= 768 ? 0 : 20
   }
   updateIsMobile()
   window.addEventListener('resize', updateIsMobile)
@@ -978,14 +978,13 @@ const goToBrowse = () => {
   overflow: hidden;
   width: 100%;
   margin-bottom: 20px;
-  padding: 0 20px; /* 左右padding创建视觉间距 */
 }
 
 /* 日历容器,包含三个日历,横向排列 */
 .calendar-container {
   display: flex;
   width: 300%; /* 三个日历的总宽度 */
-  margin-left: -20px; /* 抵消wrapper的左padding */
+  margin-left: 0;
   /* transform 和 transition 由 JS 动态控制 */
   /* 提前声明 transform 参与合成,优化移动端滑动动画性能 */
   will-change: transform;
@@ -997,8 +996,8 @@ const goToBrowse = () => {
   width: 33.333%;
   background: white;
   border-radius: 20px;
-  padding: 30px;
-  margin: 0 20px; /* 左右边距创建间隙 */
+  padding: 24px;
+  margin: 0 10px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.025);
   overflow: hidden;
   box-sizing: border-box;
@@ -1711,19 +1710,19 @@ const goToBrowse = () => {
     font-size: 20px;
   }
 
-  /* 移动端调整wrapper的padding */
-  .calendar-wrapper {
+  /* 移动端wrapper不再需要padding，让日历宽度与往日重现盒子一致 */
+  /* .calendar-wrapper {
     padding: 0 10px;
-  }
+  } */
 
-  /* 移动端调整container的margin */
-  .calendar-container {
+  /* 移动端container不再需要margin偏移 */
+  /* .calendar-container {
     margin-left: -10px;
-  }
+  } */
 
-  /* 移动端减小日历间距 */
+  /* 移动端移除日历margin，让日历宽度等于wrapper宽度，与往日重现盒子对齐 */
   .calendar-grid {
-    margin: 0 10px;
+    margin: 0;
     padding: 16px;
     border-radius: 16px;
   }
