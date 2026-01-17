@@ -28,3 +28,7 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+# 忽略 .trae 和 .claude 目录
+/.trae
+/.claude
