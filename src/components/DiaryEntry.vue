@@ -1239,16 +1239,17 @@ onUnmounted(() => {
 }
 
 .mood-indicator {
-  width: 8px;
-  height: 8px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: #e0e0e0;
+  border: 2px solid #e0e0e0;
+  background: transparent;
   transition: all 0.2s ease;
 }
 
 .mood-indicator.active {
   background: #007AFF;
-  transform: scale(1.2);
+  border-color: #007AFF;
   box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
 }
 
@@ -1822,8 +1823,9 @@ onUnmounted(() => {
   }
 
   .mood-indicator {
-    width: 6px;
-    height: 6px;
+    width: 16px;
+    height: 16px;
+    border-width: 3px;
   }
 
   .markdown-toolbar {
