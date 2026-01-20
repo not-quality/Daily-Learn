@@ -2,8 +2,6 @@
 
 ```text
 Vue-Daily Learn/
-├─ .vscode/                      VS Code 工作区配置
-│  └─ extensions.json            推荐/使用的编辑器扩展配置
 ├─ public/                       静态公开资源目录（构建时原样复制）
 │  └─ favicon.ico                网站图标
 ├─ src/                          项目源代码主目录
