@@ -1,5 +1,6 @@
 ## Vue-Daily Learn 项目结构
 
+```text
 Vue-Daily Learn/
 ├─ .vscode/                      VS Code 工作区配置
 │  └─ extensions.json            推荐/使用的编辑器扩展配置
@@ -34,6 +35,7 @@ Vue-Daily Learn/
 ├─ package-lock.json             依赖锁定文件，保证安装一致性
 ├─ vite.config.js                Vite 构建与开发服务器配置
 └─ .gitignore                    Git 忽略文件配置
+```
 
 ---
 
