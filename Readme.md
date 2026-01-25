@@ -25,6 +25,15 @@ Vue-Daily Learn/
 │  │  └─ tasks.json              默认任务与示例数据
 │  ├─ stores/                    状态管理相关模块
 │  │  └─ counter.js              示例计数 Store（Pinia 使用示例）
+│  ├─ utils/                     工具函数与存储服务
+│  │  ├─ storage/                IndexedDB 存储服务模块
+│  │  │  ├─ index.js             数据库初始化与通用 CRUD 操作
+│  │  │  ├─ sentences.js         句子练习数据存储 API
+│  │  │  ├─ words.js             单词学习数据存储 API
+│  │  │  ├─ tasks.js             任务列表存储 API
+│  │  │  ├─ diary.js             日记记录与模板存储 API
+│  │  │  └─ settings.js          应用设置存储 API
+│  │  └─ migration.js            localStorage → IndexedDB 数据迁移服务
 │  ├─ App.vue                    根组件，挂载 DailyMission 入口
 │  └─ main.js                    应用入口文件，创建并挂载 Vue 应用
 ├─ index.html                    Vite SPA 入口 HTML 模板
@@ -51,9 +60,9 @@ Vue-Daily Learn/
 - 内置「任务管理」面板：
   - 支持新增、删除任务，统计总数 / 已完成 / 未完成
   - 任务列表支持拖拽排序、勾选完成状态
-  - 使用本地 `tasks.json` 初始化数据，并将任务变更持久化到 `localStorage`
+  - 使用本地 `tasks.json` 初始化数据，并将任务变更持久化到 IndexedDB
 - 通过 `isMobile` 与 `shouldShowNavigation` 控制移动端底部导航在输入时收起，避免软键盘遮挡
-- 负责日记编辑数据在 `DiaryEntry` 与其它视图之间的传递，并在保存后将日记写入 `localStorage('daily-records')`
+- 负责日记编辑数据在 `DiaryEntry` 与其它视图之间的传递，并在保存后将日记写入 IndexedDB
 
 ### DailyRecord.vue
 
@@ -65,7 +74,7 @@ Vue-Daily Learn/
   - 禁用未来日期与起始日期之前的日期
   - 显示当天心情的 emoji；当有内容但未设置心情时，用问号提示
 - 支持在移动端通过滑动切换月份（`touchstart / touchmove / touchend` 手势处理）
-- 通过 `localStorage('daily-records')` 读取所有日记记录，提供：
+- 通过 IndexedDB 读取所有日记记录，提供：
   - 最近几天的「往日重现」列表预览
   - 点击列表项调用 `emit('openDiaryEntry')` 打开 `DiaryEntry` 进行详细编辑
 - 提供「新增日记」悬浮按钮，快速以当前日期创建新记录
@@ -79,13 +88,13 @@ Vue-Daily Learn/
 - 主内容区包括：
   - 视图模式切换：列表视图（纵向列表）与卡片网格视图
   - 排序切换：按日期升序 / 降序排列
-- 通过 `localStorage('daily-records')` 读取所有带内容且已设置心情的记录，并计算：
+- 通过 IndexedDB 读取所有带内容且已设置心情的记录，并计算：
   - 总记录数 `totalRecords`
   - 心情为积极表情（如 😊、😆）的「好心情」数量
   - 心情为消极表情的「差心情」数量
 - 使用简易 `parseMarkdown` 函数，将日记内容中的 Markdown 语法（标题、加粗、斜体、删除线、链接、列表、引用等）转换为 HTML 预览
 - 点击任意记录卡片会触发 `emit('editRecord')`，通知父组件在 `DailyRecord` 或 `DiaryEntry` 中打开该记录
-- 将列表视图模式与排序方式持久化到本地 `localStorage('daily_browse_settings')`，下次打开时保留上次浏览习惯
+- 将列表视图模式与排序方式持久化到 IndexedDB，下次打开时保留上次浏览习惯
 - 移动端同样使用底部导航栏，方便在各模块间切换
 
 ### DailySentence.vue
@@ -97,9 +106,9 @@ Vue-Daily Learn/
   - 上方展示中文句子与完成/删除按钮
   - 下方根据英文句子词数自动生成输入框数组，支持按键切换焦点
   - 点击「查看答案」切换显示完整英文句子，再次点击可收起
-- 使用 `localStorage('vue_daily_sentences')` 管理句库：
+- 使用 IndexedDB 管理句库：
   - 首次运行时以内置 `initialSentences` 初始化本地数据
-  - 后续所有修改（新增、删除、完成状态等）都写回本地
+  - 后续所有修改（新增、删除、完成状态等）都写回 IndexedDB
 - 支持添加自定义句子：
   - 通过表单输入编号 / 中文句子 / 英文句子
   - 自动校验编号唯一性与必填字段
@@ -118,9 +127,9 @@ Vue-Daily Learn/
   - 记录用户选择、是否查看答案，以及每个单词的正确累计次数 `correctCount`
 - 当某个单词的正确次数达到阈值（如 3 次）后，认为该单词已掌握，计入 `masteredWords` 与 `completedWordsList`
 - 总览统计包括：学习单词总数、已掌握数量、答题次数与整体正确率 `correctRate`
-- 本地持久化：
-  - 以 `vue_daily_words_CET4 / CET6` 为 key 存储各级别的单词学习进度
-  - 以 `vue_daily_words_settings` 存储每组单词数量等学习设置
+- 本地持久化（使用 IndexedDB）：
+  - 以 `level` 字段区分 CET4/CET6 存储各级别的单词学习进度
+  - 单词设置（每组单词数量等）存储在 settings store 中
 - 提供「学习设置」弹窗，可调整每组单词数量，并支持「应用并重新开始」快速刷新一轮新学习
 - UI 稳定性优化（2025-01-17 更新）：
   - 为 `word-card` 设置固定最小高度（桌面端 620px，平板端 580px，手机端 550px，小屏手机端 520px），避免选项内容换行时卡片跳动
@@ -134,7 +143,7 @@ Vue-Daily Learn/
 - 接收父组件传入的 `recordData`、`selectedDate` 和 `sourceView`，并在内部复制为可编辑的 `currentRecord`
 - 顶部工具栏：
   - 返回按钮：触发 `emit('back')`，并将来源视图（记录页 / 浏览页）回传给父组件
-  - 保存按钮：通过 `emit('save')` 将当前记录数据回传，由父组件负责写入 `localStorage('daily-records')`
+  - 保存按钮：通过 `emit('save')` 将当前记录数据回传，由父组件负责写入 IndexedDB
 - 三页面滑动架构（2025-01-17 更新）：
   - 采用三页面架构（前一天、当天、后一天）同时渲染，通过滑动在页面间切换
   - 前后页面添加了 Markdown 工具栏占位符，防止切换时因高度不一致导致的页面跳动
@@ -159,3 +168,79 @@ Vue-Daily Learn/
   - 允许维护多条日记模板，包含名称与内容
   - 支持新建、编辑、删除模板，以及点击模板快速插入到当前内容中
 - 通过 dayjs 处理日期显示（如编辑头部日期、占位提示），并统一使用中文本地化
+
+---
+
+## utils 目录下各模块说明
+
+### storage/index.js
+
+IndexedDB 存储服务核心模块，提供数据库初始化、连接管理和通用 CRUD 操作：
+
+- 数据库名称：`VueDailyLearnDB`，版本号：2
+- 创建并管理以下 Object Store：
+  - `sentences`：句子练习数据，主键为 `number`
+  - `words`：单词学习数据，复合主键 `[level, word]`
+  - `tasks`：任务列表，主键为 `_id`
+  - `diaryRecords`：日记记录，主键为 `id`（日期字符串）
+  - `settings`：应用设置，主键为 `key`
+  - `diaryTemplates`：日记模板，主键为 `id`
+- 导出通用方法：`initDB`、`getDB`、`closeDB`、`get`、`getAll`、`put`、`putAll`、`remove`、`clear`、`getByIndex`、`count`
+
+### storage/sentences.js
+
+句子练习数据存储 API：
+
+- `getAllSentences()`：获取所有句子
+- `saveSentence(sentence)`：保存单条句子
+- `saveAllSentences(sentences)`：批量保存句子
+- `deleteSentence(number)`：删除指定句子
+- `toggleSentenceComplete(number)`：切换句子完成状态
+
+### storage/words.js
+
+单词学习数据存储 API：
+
+- `getWordsByLevel(level)`：按级别（CET4/CET6）获取单词
+- `saveAllWords(words)`：批量保存单词（需包含 `level` 字段）
+- `getWord(level, word)`：获取单个单词数据
+- `saveWord(wordData)`：保存单个单词数据
+
+### storage/tasks.js
+
+任务列表存储 API：
+
+- `getAllTasks()`：获取所有任务
+- `saveAllTasks(tasks)`：批量保存任务
+- `saveTask(task)`：保存单条任务
+- `deleteTask(id)`：删除指定任务
+
+### storage/diary.js
+
+日记记录与模板存储 API：
+
+- `getAllDiaryRecords()`：获取所有日记（返回以日期为键的对象）
+- `getDiaryRecord(id)`：获取单条日记
+- `saveDiaryRecord(record)`：保存单条日记
+- `saveAllDiaryRecords(recordsObj)`：批量保存日记（接收对象格式）
+- `deleteDiaryRecord(id)`：删除指定日记
+- `getAllTemplates()`：获取所有日记模板
+- `saveAllTemplates(templates)`：批量保存模板
+
+### storage/settings.js
+
+应用设置存储 API：
+
+- `getWordsSettings()`：获取单词学习设置（每组单词数量等）
+- `saveWordsSettings(settings)`：保存单词学习设置
+- `getBrowseSettings()`：获取浏览页面设置（排序方式、视图模式）
+- `saveBrowseSettings(settings)`：保存浏览页面设置
+
+### migration.js
+
+localStorage → IndexedDB 数据迁移服务：
+
+- 应用首次启动时自动检测并执行迁移
+- 迁移完成后在 localStorage 中设置 `idb_migration_completed` 标记
+- 支持迁移的数据：句子、单词（CET4/CET6）、任务、日记、模板、各类设置
+- 导出方法：`needsMigration()`、`runMigration()`、`resetMigration()`（调试用）

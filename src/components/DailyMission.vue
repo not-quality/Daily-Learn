@@ -67,7 +67,7 @@
         >
           <div class="task-content">
             <div class="drag-handle">⋮⋮</div>
-            <input type="checkbox" v-model="item.iscomplete" @change="saveToLocalStorage">
+            <input type="checkbox" v-model="item.iscomplete" @change="saveToStorage">
             <span :class="{ 'completed-text': item.iscomplete }">{{ item.name }}</span>
           </div>
           <div class="task-actions">
@@ -181,6 +181,9 @@ import DailyWords from './DailyWords.vue'
 import DailyRecord from './DailyRecord.vue'
 import DailyBrowse from './DailyBrowse.vue'
 import DiaryEntry from './DiaryEntry.vue'
+// 导入 IndexedDB 存储 API
+import { getAllTasks, saveAllTasks } from '@/utils/storage/tasks.js'
+import { getAllDiaryRecords, saveDiaryRecord } from '@/utils/storage/diary.js'
 
 // 设置 dayjs 中文本地化
 dayjs.locale('zh-cn')
@@ -241,18 +244,10 @@ const handleOpenDiaryEntry = (data) => {
 }
 
 // 处理日记保存
-const handleDiarySave = (recordData) => {
+const handleDiarySave = async (recordData) => {
   try {
-    // 从localStorage获取现有记录
-    const existingRecords = JSON.parse(localStorage.getItem('daily-records') || '{}')
-
-    // 更新记录
-    const dateKey = recordData.id || recordData.date
-    existingRecords[dateKey] = recordData
-
-    // 保存到localStorage
-    localStorage.setItem('daily-records', JSON.stringify(existingRecords))
-
+    // 保存到 IndexedDB
+    await saveDiaryRecord(recordData)
     console.log('日记保存成功:', recordData)
   } catch (error) {
     console.error('保存日记失败:', error)
@@ -269,12 +264,12 @@ const handleDiaryBack = (sourceView) => {
 }
 
 // 处理日记日期切换（左右滑动切换）
-const handleDiaryDateChange = (page, data) => {
+const handleDiaryDateChange = async (page, data) => {
   // 确保传入的是有效的 dayjs 对象
   const newDate = dayjs.isDayjs(data.date) ? data.date : dayjs(data.date)
 
-  // 从localStorage获取对应日期的记录
-  const existingRecords = JSON.parse(localStorage.getItem('daily-records') || '{}')
+  // 从 IndexedDB 获取对应日期的记录
+  const existingRecords = await getAllDiaryRecords()
   const dateKey = newDate.format('YYYY-MM-DD')
 
   // 获取该日期的记录，如果不存在则创建新记录
@@ -352,7 +347,7 @@ const sortTasks = (a, b) => {
 }
 
 // 任务管理方法
-const addTask = () => {
+const addTask = async () => {
   if (taskInput.value.trim() === '') return
 
   const newTask = {
@@ -365,7 +360,7 @@ const addTask = () => {
 
   taskList.value.push(newTask)
   taskInput.value = ''
-  saveToLocalStorage()
+  await saveToStorage()
 }
 
 // 任务输入框聚焦时的处理函数，隐藏底部导航栏以避免软键盘遮挡
@@ -378,7 +373,7 @@ const handleTaskInputBlur = () => {
   isTaskInputFocused.value = false
 }
 
-const deleteTask = (id) => {
+const deleteTask = async (id) => {
   const index = taskList.value.findIndex(item => item._id === id)
   if (index !== -1) {
     taskList.value.splice(index, 1)
@@ -386,7 +381,7 @@ const deleteTask = (id) => {
     taskList.value.forEach((item, idx) => {
       item.order = idx
     })
-    saveToLocalStorage()
+    await saveToStorage()
   }
 }
 
@@ -406,7 +401,7 @@ const handleDragOver = (event) => {
   event.dataTransfer.dropEffect = 'move'
 }
 
-const handleDrop = (event, targetItem) => {
+const handleDrop = async (event, targetItem) => {
   event.preventDefault()
 
   if (!draggedItem || draggedItem._id === targetItem._id) {
@@ -427,7 +422,7 @@ const handleDrop = (event, targetItem) => {
     item.order = index
   })
 
-  saveToLocalStorage()
+  await saveToStorage()
 }
 
 const handleDragEnd = (event) => {
@@ -457,26 +452,32 @@ const checkContentHeight = () => {
   showExpandBtn.value = filteredAndSortedList.value.length > MIN_ITEMS_TO_EXPAND
 }
 
-// 本地存储
-const saveToLocalStorage = () => {
-  localStorage.setItem('taskList', JSON.stringify(taskList.value))
+// IndexedDB 存储
+const saveToStorage = async () => {
+  try {
+    await saveAllTasks(taskList.value)
+  } catch (error) {
+    console.error('保存任务列表失败:', error)
+  }
 }
 
-const loadFromLocalStorage = () => {
-  const saved = localStorage.getItem('taskList')
-  if (saved) {
-    try {
-      taskList.value = JSON.parse(saved)
-    } catch (error) {
-      console.error('加载任务列表失败:', error)
+const loadFromStorage = async () => {
+  try {
+    const tasks = await getAllTasks()
+    if (tasks && tasks.length > 0) {
+      taskList.value = tasks
+    } else {
       // 转换初始数据格式
       taskList.value = initialData.data.map((item, index) => ({
         ...item,
         name: item.text || item.name,
         order: index
       }))
+      // 保存初始数据到 IndexedDB
+      await saveToStorage()
     }
-  } else {
+  } catch (error) {
+    console.error('加载任务列表失败:', error)
     // 转换初始数据格式
     taskList.value = initialData.data.map((item, index) => ({
       ...item,
@@ -497,9 +498,9 @@ watchEffect(() => {
 })
 
 // 生命周期
-onMounted(() => {
+onMounted(async () => {
   // 加载任务数据
-  loadFromLocalStorage()
+  await loadFromStorage()
 
   // 移动端检测
   updateIsMobile()

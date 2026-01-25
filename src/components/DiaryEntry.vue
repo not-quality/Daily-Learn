@@ -289,12 +289,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, toRaw } from 'vue'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
-import { 
+import {
   ArrowLeft, Check, Picture, Camera, Edit, Document, Plus, Delete, Close
 } from '@element-plus/icons-vue'
+// 导入 IndexedDB 存储 API
+import { getAllDiaryRecords, getDiaryRecord } from '@/utils/storage/diary.js'
+import { getAllTemplates, saveAllTemplates } from '@/utils/storage/diary.js'
 
 // 设置中文本地化
 dayjs.locale('zh-cn')
@@ -354,12 +357,12 @@ const prevDate = computed(() => props.selectedDate.subtract(1, 'day'))
 const currentDateValue = computed(() => props.selectedDate)
 const nextDate = computed(() => props.selectedDate.add(1, 'day'))
 
-// 从localStorage加载日记数据
-const loadRecordForDate = (date) => {
+// 从 IndexedDB 加载日记数据
+const loadRecordForDate = async (date) => {
   try {
-    const records = JSON.parse(localStorage.getItem('daily-records') || '{}')
     const dateKey = date.format('YYYY-MM-DD')
-    return records[dateKey] || {
+    const record = await getDiaryRecord(dateKey)
+    return record || {
       id: dateKey,
       date: date.toISOString(),
       mood: '',
@@ -379,15 +382,38 @@ const loadRecordForDate = (date) => {
 }
 
 // 三个页面的数据（使用ref，中间页面可编辑，两侧只读显示）
-const prevRecord = ref(loadRecordForDate(prevDate.value))
-const currentRecord = ref(loadRecordForDate(currentDateValue.value))
-const nextRecord = ref(loadRecordForDate(nextDate.value))
+const prevRecord = ref({
+  id: '',
+  date: '',
+  mood: '',
+  content: '',
+  images: []
+})
+const currentRecord = ref({
+  id: '',
+  date: '',
+  mood: '',
+  content: '',
+  images: []
+})
+const nextRecord = ref({
+  id: '',
+  date: '',
+  mood: '',
+  content: '',
+  images: []
+})
+
+// 加载三个页面的数据
+const loadAllRecords = async () => {
+  prevRecord.value = await loadRecordForDate(prevDate.value)
+  currentRecord.value = await loadRecordForDate(currentDateValue.value)
+  nextRecord.value = await loadRecordForDate(nextDate.value)
+}
 
 // 当props.selectedDate变化时，重新加载三个页面的数据
-watch(() => props.selectedDate, () => {
-  prevRecord.value = loadRecordForDate(prevDate.value)
-  currentRecord.value = loadRecordForDate(currentDateValue.value)
-  nextRecord.value = loadRecordForDate(nextDate.value)
+watch(() => props.selectedDate, async () => {
+  await loadAllRecords()
 }, { immediate: true })
 
 // 日记容器样式 - 控制滑动动画
@@ -684,20 +710,26 @@ const removeImageFromFullscreen = () => {
 }
 
 // 模板功能
-const loadTemplates = () => {
-  const savedTemplates = localStorage.getItem('diary-templates')
-  if (savedTemplates) {
-    try {
-      templates.value = JSON.parse(savedTemplates)
-    } catch (error) {
-      console.error('加载模板失败:', error)
-      templates.value = []
+const loadTemplates = async () => {
+  try {
+    const savedTemplates = await getAllTemplates()
+    if (savedTemplates && savedTemplates.length > 0) {
+      templates.value = savedTemplates
     }
+  } catch (error) {
+    console.error('加载模板失败:', error)
+    templates.value = []
   }
 }
 
-const saveTemplates = () => {
-  localStorage.setItem('diary-templates', JSON.stringify(templates.value))
+const saveTemplates = async () => {
+  try {
+    // 将响应式对象转换为普通对象，避免 IndexedDB 的 DataCloneError
+    const rawTemplates = JSON.parse(JSON.stringify(toRaw(templates.value)))
+    await saveAllTemplates(rawTemplates)
+  } catch (error) {
+    console.error('保存模板失败:', error)
+  }
 }
 
 const insertTemplate = (template) => {
@@ -727,7 +759,7 @@ const editTemplate = (template) => {
   isEditingTemplate.value = true
 }
 
-const saveNewTemplate = () => {
+const saveNewTemplate = async () => {
   if (!newTemplateName.value.trim() || !newTemplateContent.value.trim()) {
     alert('请填写模板名称和内容')
     return
@@ -755,16 +787,16 @@ const saveNewTemplate = () => {
     templates.value.push(newTemplate)
   }
 
-  saveTemplates()
+  await saveTemplates()
   showNewTemplate.value = false
   editingTemplate.value = null
   isEditingTemplate.value = false
 }
 
-const deleteTemplate = (templateId) => {
+const deleteTemplate = async (templateId) => {
   if (confirm('确定要删除这个模板吗？')) {
     templates.value = templates.value.filter(t => t.id !== templateId)
-    saveTemplates()
+    await saveTemplates()
   }
 }
 
@@ -922,8 +954,11 @@ const saveRecord = () => {
     currentRecord.value.date = props.selectedDate.toISOString()
   }
 
+  // 将响应式对象转换为普通对象，避免 IndexedDB 的 DataCloneError
+  const rawRecord = JSON.parse(JSON.stringify(toRaw(currentRecord.value)))
+
   // 发送保存事件
-  emit('save', currentRecord.value)
+  emit('save', rawRecord)
 }
 
 const saveAndReturn = () => {
@@ -961,9 +996,9 @@ const updateIsMobile = () => {
 }
 
 // 生命周期
-onMounted(() => {
+onMounted(async () => {
   // 加载模板
-  loadTemplates()
+  await loadTemplates()
 
   // 初始化gap值并监听窗口大小变化
   updateIsMobile()

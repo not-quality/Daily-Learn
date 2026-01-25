@@ -264,6 +264,8 @@ import {
 import '@/assets/navigation.css'
 // 导入手机端导航样式
 import '@/assets/mobile-nav.css'
+// 导入 IndexedDB 存储 API
+import { getAllDiaryRecords, saveAllDiaryRecords } from '@/utils/storage/diary.js'
 
 // 定义props
 const props = defineProps({
@@ -864,8 +866,55 @@ watch(() => props.editingRecord, (newRecord) => {
   }
 }, { immediate: true })
 
+// 加载日记数据的函数
+const loadDiaryRecords = async () => {
+  try {
+    const savedRecords = await getAllDiaryRecords()
+    if (savedRecords && Object.keys(savedRecords).length > 0) {
+      records.value = savedRecords
+    } else {
+      // 如果没有保存的数据，添加一些示例数据
+      const today = dayjs()
+      const sampleRecords = {
+        [today.format('YYYY-MM-DD')]: {
+          id: today.format('YYYY-MM-DD'),
+          date: today.toISOString(),
+          mood: '😊',
+          content: '今天感觉有许多摸鱼偷懒的时间，仍有提高时间利用率的空间。\n\n昨晚睡晚了，早上又有早课，不想上课😭\n今天天冷，不想学习。',
+          images: []
+        },
+        [today.subtract(1, 'day').format('YYYY-MM-DD')]: {
+          id: today.subtract(1, 'day').format('YYYY-MM-DD'),
+          date: today.subtract(1, 'day').toISOString(),
+          mood: '😞',
+          content: '今天有点累，工作压力比较大。不过也有一些小收获。\n\n## 今天学到的\n- 完成了项目的一个重要功能\n- 学习了新的技术栈\n\n## 明天的计划\n- 继续优化代码\n- 准备下周的演示',
+          images: []
+        },
+        [today.subtract(2, 'day').format('YYYY-MM-DD')]: {
+          id: today.subtract(2, 'day').format('YYYY-MM-DD'),
+          date: today.subtract(2, 'day').toISOString(),
+          mood: '😆',
+          content: '今天心情特别好！和朋友一起出去玩了。\n\n**今天的亮点：**\n- 和朋友看了一场很棒的电影\n- 吃了美味的晚餐\n- 天气很好，心情也很棒\n\n希望每天都能这么开心！',
+          images: []
+        }
+      }
+      records.value = sampleRecords
+      await saveAllDiaryRecords(sampleRecords)
+    }
+  } catch (error) {
+    console.error('加载日记数据失败:', error)
+  }
+}
+
+// 监听 currentPage 变化，当切换回日记页面时重新加载数据
+watch(() => props.currentPage, async (newPage) => {
+  if (newPage === 'record') {
+    await loadDiaryRecords()
+  }
+})
+
 // 生命周期
-onMounted(() => {
+onMounted(async () => {
   // 移动端检测和gap值更新
   const updateIsMobile = () => {
     isMobile.value = window.innerWidth <= 768
@@ -874,46 +923,9 @@ onMounted(() => {
   }
   updateIsMobile()
   window.addEventListener('resize', updateIsMobile)
-  
-  // 从 localStorage 加载数据
-  const savedRecords = localStorage.getItem('daily-records')
-  if (savedRecords) {
-    try {
-      records.value = JSON.parse(savedRecords)
-    } catch (error) {
-      console.error('加载日记数据失败:', error)
-    }
-  } else {
-    // 如果没有保存的数据，添加一些示例数据
-    const today = dayjs()
-    const sampleRecords = {
-      [today.format('YYYY-MM-DD')]: {
-        id: today.format('YYYY-MM-DD'),
-        date: today.toISOString(),
-        mood: '😊',
-        content: '今天感觉有许多摸鱼偷懒的时间，仍有提高时间利用率的空间。\n\n昨晚睡晚了，早上又有早课，不想上课😭\n今天天冷，不想学习。',
-        images: []
-      },
-      [today.subtract(1, 'day').format('YYYY-MM-DD')]: {
-        id: today.subtract(1, 'day').format('YYYY-MM-DD'),
-        date: today.subtract(1, 'day').toISOString(),
-        mood: '😞',
-        content: '今天有点累，工作压力比较大。不过也有一些小收获。\n\n## 今天学到的\n- 完成了项目的一个重要功能\n- 学习了新的技术栈\n\n## 明天的计划\n- 继续优化代码\n- 准备下周的演示',
-        images: []
-      },
-      [today.subtract(2, 'day').format('YYYY-MM-DD')]: {
-        id: today.subtract(2, 'day').format('YYYY-MM-DD'),
-        date: today.subtract(2, 'day').toISOString(),
-        mood: '😆',
-        content: '今天心情特别好！和朋友一起出去玩了。\n\n**今天的亮点：**\n- 和朋友看了一场很棒的电影\n- 吃了美味的晚餐\n- 天气很好，心情也很棒\n\n希望每天都能这么开心！',
-        images: []
-      }
-    }
-    records.value = sampleRecords
-    localStorage.setItem('daily-records', JSON.stringify(sampleRecords))
-  }
 
-
+  // 从 IndexedDB 加载数据
+  await loadDiaryRecords()
 
   // 清理事件监听器
   return () => {

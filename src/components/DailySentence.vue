@@ -125,6 +125,8 @@ import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { CirclePlus, Delete, Check } from '@element-plus/icons-vue'
 // 引入导航栏样式
 import '@/assets/navigation.css'
+// 导入 IndexedDB 存储 API
+import { getAllSentences, saveAllSentences, saveSentence, deleteSentence as deleteSentenceFromDB, toggleSentenceComplete } from '@/utils/storage/sentences.js'
 
 // 定义props和emits
 const props = defineProps({
@@ -145,9 +147,6 @@ const switchToTasks = () => {
 const switchToSentence = () => {
   emit('changePage', 'sentence')
 }
-
-// localStorage键名
-const STORAGE_KEY = 'vue_daily_sentences'
 
 // 计算英文句子中的单词数量
 const countWordsInEnglish = (englishSentence) => {
@@ -199,15 +198,13 @@ const initialSentences = [
   },
 ]
 
-// 本地数据管理器
+// 本地数据管理器 (使用 IndexedDB)
 const localSentenceManager = {
   // 获取所有句子
-  getSentences() {
+  async getSentences() {
     try {
-      const storedData = localStorage.getItem(STORAGE_KEY)
-      if (storedData) {
-        const parsedData = JSON.parse(storedData)
-        const data = parsedData.data || []
+      const data = await getAllSentences()
+      if (data && data.length > 0) {
         // 确保所有句子都有必要的属性
         data.forEach(sentence => {
           if (!sentence.hasOwnProperty('showAnswer')) {
@@ -228,8 +225,8 @@ const localSentenceManager = {
           data: data
         }
       } else {
-        // 如果localStorage中没有数据，使用初始数据并保存
-        this.saveSentences(initialSentences)
+        // 如果 IndexedDB 中没有数据，使用初始数据并保存
+        await this.saveSentences(initialSentences)
         return {
           success: true,
           data: initialSentences
@@ -245,14 +242,10 @@ const localSentenceManager = {
     }
   },
 
-  // 保存句子到localStorage
-  saveSentences(sentences) {
+  // 保存句子到 IndexedDB
+  async saveSentences(sentences) {
     try {
-      const dataToSave = {
-        success: true,
-        data: sentences
-      }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave))
+      await saveAllSentences(sentences)
       return { success: true }
     } catch (error) {
       console.error('保存句子失败:', error)
@@ -265,9 +258,9 @@ const localSentenceManager = {
   },
 
   // 添加新句子
-  addSentence(number, chinese, english) {
+  async addSentence(number, chinese, english) {
     try {
-      const currentData = this.getSentences()
+      const currentData = await this.getSentences()
       if (!currentData.success) {
         return currentData
       }
@@ -292,16 +285,11 @@ const localSentenceManager = {
         createdAt: new Date().toISOString()
       }
 
-      const updatedSentences = [...currentData.data, newSentence]
-      const saveResult = this.saveSentences(updatedSentences)
-      
-      if (saveResult.success) {
-        return {
-          success: true,
-          data: newSentence
-        }
-      } else {
-        return saveResult
+      await saveSentence(newSentence)
+
+      return {
+        success: true,
+        data: newSentence
       }
     } catch (error) {
       console.error('添加句子失败:', error)
@@ -314,9 +302,9 @@ const localSentenceManager = {
   },
 
   // 删除句子
-  deleteSentence(number) {
+  async deleteSentence(number) {
     try {
-      const currentData = this.getSentences()
+      const currentData = await this.getSentences()
       if (!currentData.success) {
         return currentData
       }
@@ -329,17 +317,12 @@ const localSentenceManager = {
         }
       }
 
-      const updatedSentences = currentData.data.filter(sentence => sentence.number !== number)
-      const saveResult = this.saveSentences(updatedSentences)
-      
-      if (saveResult.success) {
-        return {
-          success: true,
-          message: '句子删除成功',
-          data: { number }
-        }
-      } else {
-        return saveResult
+      await deleteSentenceFromDB(number)
+
+      return {
+        success: true,
+        message: '句子删除成功',
+        data: { number }
       }
     } catch (error) {
       console.error('删除句子失败:', error)
@@ -352,37 +335,19 @@ const localSentenceManager = {
   },
 
   // 切换句子完成状态
-  toggleComplete(number) {
+  async toggleComplete(number) {
     try {
-      const currentData = this.getSentences()
-      if (!currentData.success) {
-        return currentData
-      }
-
-      const sentenceIndex = currentData.data.findIndex(sentence => sentence.number === number)
-      if (sentenceIndex === -1) {
+      const result = await toggleSentenceComplete(number)
+      if (result) {
+        return {
+          success: true,
+          data: result
+        }
+      } else {
         return {
           success: false,
           message: '未找到指定句子'
         }
-      }
-
-      const updatedSentences = [...currentData.data]
-      updatedSentences[sentenceIndex] = {
-        ...updatedSentences[sentenceIndex],
-        completed: !updatedSentences[sentenceIndex].completed,
-        updatedAt: new Date().toISOString()
-      }
-
-      const saveResult = this.saveSentences(updatedSentences)
-      
-      if (saveResult.success) {
-        return {
-          success: true,
-          data: updatedSentences[sentenceIndex]
-        }
-      } else {
-        return saveResult
       }
     } catch (error) {
       console.error('切换句子完成状态失败:', error)
@@ -433,12 +398,12 @@ const initializeSentence = (sentence) => {
 }
 
 // 获取句子列表数据
-const fetchSentences = () => {
-  const result = localSentenceManager.getSentences()
+const fetchSentences = async () => {
+  const result = await localSentenceManager.getSentences()
   if (result.success) {
     sentences.splice(0, sentences.length, ...result.data)
     sentences.forEach(initializeSentence)
-    
+
     // 重新加载数据后在DOM稳定时统一检测布局状态，避免后期频繁重排
     nextTick(() => {
       // 短延迟后检测中文是否换行以及答案按钮内容长度
@@ -462,24 +427,24 @@ const addSentence = async () => {
   }
 
   isSubmitting.value = true
-  
+
   try {
-    const result = localSentenceManager.addSentence(
-      numberInput.value.trim(), 
-      chineseInput.value.trim(), 
+    const result = await localSentenceManager.addSentence(
+      numberInput.value.trim(),
+      chineseInput.value.trim(),
       englishInput.value.trim()
     )
-    
+
     if (result.success) {
       // 直接在当前数组中添加新句子，不重新加载整个数据
       const newSentence = result.data
       initializeSentence(newSentence)
       sentences.push(newSentence)
-      
+
       // 只检测新添加的句子，避免影响其他句子
       const newSentenceIndex = sentences.length - 1
       checkSpecificButtonWrapped(newSentenceIndex)
-      
+
       // 重置表单
       numberInput.value = ''
       chineseInput.value = ''
@@ -506,9 +471,9 @@ const cancelAddForm = () => {
 }
 
 // 删除句子
-const deleteSentence = (number) => {
+const deleteSentence = async (number) => {
   if (confirm('确定要删除这个句子吗？')) {
-    const result = localSentenceManager.deleteSentence(number)
+    const result = await localSentenceManager.deleteSentence(number)
     if (result.success) {
       // 只从当前数组中移除句子，不重新加载整个数据
       const sentenceIndex = sentences.findIndex(sentence => sentence.number === number)
@@ -523,8 +488,8 @@ const deleteSentence = (number) => {
 }
 
 // 切换句子完成状态
-const toggleComplete = (number) => {
-  const result = localSentenceManager.toggleComplete(number)
+const toggleComplete = async (number) => {
+  const result = await localSentenceManager.toggleComplete(number)
   if (result.success) {
     // 只更新特定句子的状态，不重新加载整个数据
     const sentenceIndex = sentences.findIndex(sentence => sentence.number === number)
@@ -1006,9 +971,9 @@ const handleResize = () => {
   }, 200)
 }
 
-onMounted(() => {
+onMounted(async () => {
   // 获取数据
-  fetchSentences()
+  await fetchSentences()
 
   // 添加窗口大小变化监听器
   window.addEventListener('resize', handleResize)

@@ -130,6 +130,9 @@ import {
 } from '@element-plus/icons-vue'
 // 导入导航样式
 import '@/assets/navigation.css'
+// 导入 IndexedDB 存储 API
+import { getAllDiaryRecords } from '@/utils/storage/diary.js'
+import { getBrowseSettings, saveBrowseSettings } from '@/utils/storage/settings.js'
 
 // 定义props
 const props = defineProps({
@@ -158,47 +161,34 @@ const navigationItems = ref([
 // 设置中文本地化
 dayjs.locale('zh-cn')
 
-// localStorage键名
-const BROWSE_SETTINGS_KEY = 'daily_browse_settings'
+// 响应式数据
+const records = ref({})
+const sortOrder = ref('desc') // 'desc' 为最新在前，'asc' 为最旧在前
+const viewMode = ref('list') // 'list' 或 'grid'
 
-// 从localStorage加载设置
-const loadSettings = () => {
+// 从 IndexedDB 加载设置
+const loadSettings = async () => {
   try {
-    const saved = localStorage.getItem(BROWSE_SETTINGS_KEY)
-    if (saved) {
-      const settings = JSON.parse(saved)
-      return {
-        sortOrder: settings.sortOrder || 'desc',
-        viewMode: settings.viewMode || 'list'
-      }
-    }
+    const settings = await getBrowseSettings()
+    sortOrder.value = settings.sortOrder || 'desc'
+    viewMode.value = settings.viewMode || 'list'
   } catch (error) {
     console.error('加载浏览设置失败:', error)
   }
-  return {
-    sortOrder: 'desc',
-    viewMode: 'list'
-  }
 }
 
-// 保存设置到localStorage
-const saveSettings = () => {
+// 保存设置到 IndexedDB
+const saveSettings = async () => {
   try {
     const settings = {
       sortOrder: sortOrder.value,
       viewMode: viewMode.value
     }
-    localStorage.setItem(BROWSE_SETTINGS_KEY, JSON.stringify(settings))
+    await saveBrowseSettings(settings)
   } catch (error) {
     console.error('保存浏览设置失败:', error)
   }
 }
-
-// 响应式数据
-const records = ref({})
-const initialSettings = loadSettings()
-const sortOrder = ref(initialSettings.sortOrder) // 'desc' 为最新在前，'asc' 为最旧在前
-const viewMode = ref(initialSettings.viewMode) // 'list' 或 'grid'
 
 // Markdown解析函数（简化版）
 const parseMarkdown = (text) => {
@@ -334,30 +324,27 @@ const editRecord = (record) => {
 }
 
 // 加载日记数据
-const loadRecords = () => {
-  const savedRecords = localStorage.getItem('daily-records')
-  if (savedRecords) {
-    try {
-      records.value = JSON.parse(savedRecords)
-    } catch (error) {
-      console.error('加载日记数据失败:', error)
-      records.value = {}
-    }
-  } else {
+const loadRecords = async () => {
+  try {
+    records.value = await getAllDiaryRecords()
+  } catch (error) {
+    console.error('加载日记数据失败:', error)
     records.value = {}
   }
 }
 
 // 生命周期
-onMounted(() => {
-  loadRecords()
-  
+onMounted(async () => {
+  // 加载设置和日记数据
+  await loadSettings()
+  await loadRecords()
+
   const updateIsMobile = () => {
     isMobile.value = window.innerWidth <= 768
   }
   updateIsMobile()
   window.addEventListener('resize', updateIsMobile)
-  
+
   return () => {
     window.removeEventListener('resize', updateIsMobile)
   }

@@ -197,6 +197,9 @@ import CET4Data from '@/data/CET4.json'
 import CET6Data from '@/data/CET6.json'
 // 引入导航栏样式
 import '@/assets/navigation.css'
+// 导入 IndexedDB 存储 API
+import { getWordsByLevel, saveAllWords } from '@/utils/storage/words.js'
+import { getWordsSettings, saveWordsSettings } from '@/utils/storage/settings.js'
 
 // 组件props
 const props = defineProps({
@@ -227,10 +230,6 @@ const completedWordsList = ref([])
 const wordsPerGroup = ref(10) // 每组单词数量，默认10个
 const showSettings = ref(false) // 是否显示设置界面
 
-// 本地存储key
-const STORAGE_KEY_PREFIX = 'vue_daily_words_'
-const SETTINGS_KEY = 'vue_daily_words_settings'
-
 // 当前单词
 const currentWord = computed(() => {
   return currentWords.value[currentWordIndex.value] || null
@@ -246,56 +245,72 @@ const correctRate = computed(() => {
   return totalAnswered.value > 0 ? totalCorrect.value / totalAnswered.value : 0
 })
 
-// 获取本地存储的单词数据
-const getStoredWords = (level) => {
-  const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${level}`)
-  return stored ? JSON.parse(stored) : null
-}
-
-// 保存单词数据到本地存储
-const saveWordsToStorage = (level, words) => {
-  localStorage.setItem(`${STORAGE_KEY_PREFIX}${level}`, JSON.stringify(words))
-}
-
-// 获取设置
-const getSettings = () => {
-  const stored = localStorage.getItem(SETTINGS_KEY)
-  return stored ? JSON.parse(stored) : { wordsPerGroup: 10 }
-}
-
-// 保存设置
-const saveSettings = () => {
-  const settings = {
-    wordsPerGroup: wordsPerGroup.value
+// 获取本地存储的单词数据 (从 IndexedDB)
+const getStoredWords = async (level) => {
+  try {
+    const words = await getWordsByLevel(level)
+    return words && words.length > 0 ? words : null
+  } catch (error) {
+    console.error('获取单词数据失败:', error)
+    return null
   }
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
 }
 
-// 加载设置
-const loadSettings = () => {
-  const settings = getSettings()
-  wordsPerGroup.value = Number(settings.wordsPerGroup) || 10
+// 保存单词数据到 IndexedDB
+const saveWordsToStorage = async (level, words) => {
+  try {
+    // 确保每个单词都有 level 字段
+    const wordsWithLevel = words.map(word => ({
+      ...word,
+      level
+    }))
+    await saveAllWords(wordsWithLevel)
+  } catch (error) {
+    console.error('保存单词数据失败:', error)
+  }
+}
+
+// 加载设置 (从 IndexedDB)
+const loadSettings = async () => {
+  try {
+    const settings = await getWordsSettings()
+    wordsPerGroup.value = Number(settings.wordsPerGroup) || 10
+  } catch (error) {
+    console.error('加载设置失败:', error)
+  }
+}
+
+// 保存设置 (到 IndexedDB)
+const saveSettingsToStorage = async () => {
+  try {
+    const settings = {
+      wordsPerGroup: wordsPerGroup.value
+    }
+    await saveWordsSettings(settings)
+  } catch (error) {
+    console.error('保存设置失败:', error)
+  }
 }
 
 // 解析单词数据
-const parseWordData = (data, level) => {
+const parseWordData = async (data, level) => {
   const words = []
   const prefix = level === 'CET4' ? 'CET46:CET4_' : 'CET46:CET6_'
-  
+
   // 获取单词总数
   const infoKey = level === 'CET4' ? 'CET46:CET4_info' : 'CET46:CET6_info'
   const totalCount = parseInt(data[infoKey].TEXT[0])
-  
+
   // 获取存储的单词数据
-  const storedWords = getStoredWords(level)
+  const storedWords = await getStoredWords(level)
   const storedWordMap = new Map()
-  
+
   if (storedWords) {
     storedWords.forEach(word => {
       storedWordMap.set(word.word, word)
     })
   }
-  
+
   // 解析所有单词
   for (let i = 0; i < totalCount; i++) {
     const key = `${prefix}${i}`
@@ -303,10 +318,10 @@ const parseWordData = (data, level) => {
       const wordData = data[key].TEXT
       const word = wordData[0]
       const meanings = wordData.slice(1)
-      
+
       // 检查是否有存储的数据
       const stored = storedWordMap.get(word)
-      
+
       words.push({
         word,
         meanings,
@@ -316,7 +331,7 @@ const parseWordData = (data, level) => {
       })
     }
   }
-  
+
   return words
 }
 
@@ -387,19 +402,19 @@ const generateOptions = (correctMeaning, allWords) => {
 }
 
 // 切换级别
-const toggleLevel = () => {
+const toggleLevel = async () => {
   currentLevel.value = currentLevel.value === 'CET4' ? 'CET6' : 'CET4'
-  initializeWords()
+  await initializeWords()
 }
 
 // 初始化单词
-const initializeWords = () => {
+const initializeWords = async () => {
   const data = currentLevel.value === 'CET4' ? CET4Data : CET6Data
-  const allWords = parseWordData(data, currentLevel.value)
-  
+  const allWords = await parseWordData(data, currentLevel.value)
+
   // 选择指定数量的单词进行学习
   currentWords.value = selectRandomWords(allWords, Number(wordsPerGroup.value))
-  
+
   currentWordIndex.value = 0
   showCompletion.value = false
   totalCorrect.value = 0
@@ -407,22 +422,22 @@ const initializeWords = () => {
   completedWordsCount.value = 0
   totalWordsCount.value = currentWords.value.length
   completedWordsList.value = []
-  
+
   if (currentWords.value.length > 0) {
-    generateCurrentOptions()
+    await generateCurrentOptions()
   }
 }
 
 // 生成当前单词的选项
-const generateCurrentOptions = () => {
+const generateCurrentOptions = async () => {
   if (!currentWord.value) return
-  
+
   const data = currentLevel.value === 'CET4' ? CET4Data : CET6Data
-  const allWords = parseWordData(data, currentLevel.value)
-  
+  const allWords = await parseWordData(data, currentLevel.value)
+
   const correctMeaning = currentWord.value.meanings[0]
   const { options, correctIndex } = generateOptions(correctMeaning, allWords)
-  
+
   currentOptions.value = options
   correctAnswer.value = correctIndex
   selectedOption.value = null
@@ -430,13 +445,13 @@ const generateCurrentOptions = () => {
 }
 
 // 选择选项
-const selectOption = (index) => {
+const selectOption = async (index) => {
   if (showAnswer.value) return
   selectedOption.value = index
-  
+
   // 直接显示答案和结果
   showAnswer.value = true
-  
+
   // 记录答题结果
   const isCorrect = selectedOption.value === correctAnswer.value
   totalAnswered.value++
@@ -444,118 +459,118 @@ const selectOption = (index) => {
     totalCorrect.value++
     currentWord.value.correctCount++
   }
-  
+
   // 更新单词数据
   currentWord.value.totalAttempts++
   currentWord.value.lastStudied = new Date().toISOString()
-  
-  // 保存到本地存储
-  saveCurrentWordData()
-  
+
+  // 保存到 IndexedDB
+  await saveCurrentWordData()
+
   // 检查单词是否已完成（答对3次）
   if (isCorrect && currentWord.value.correctCount >= 3) {
     // 单词完成，增加完成计数
     completedWordsCount.value++
-    
+
     // 将完成的单词添加到列表中
     completedWordsList.value.push({
       word: currentWord.value.word,
       meaning: currentWord.value.meanings[0],
       completedAt: new Date().toISOString()
     })
-    
+
     // 注意：不在这里移除单词，等用户点击"下一题"时再移除
   }
 }
 
 // 切换答案显示
-const toggleAnswer = () => {
+const toggleAnswer = async () => {
   if (!showAnswer.value) {
     // 用户点击"看答案"，没有选择选项，判定为错误
     showAnswer.value = true
-    
+
     // 如果没有选择选项，设置为null表示放弃答题
     if (selectedOption.value === null) {
       // 记录答题结果为错误
       totalAnswered.value++
       // 不增加正确计数
-      
+
       // 更新单词数据
       currentWord.value.totalAttempts++
       currentWord.value.lastStudied = new Date().toISOString()
-      
-      // 保存到本地存储
-      saveCurrentWordData()
+
+      // 保存到 IndexedDB
+      await saveCurrentWordData()
     }
-    
+
   } else {
     // 下一题
     // 检查当前单词是否已完成（答对3次），如果是则从列表中移除
     if (currentWord.value && currentWord.value.correctCount >= 3) {
       // 从当前学习列表中移除该单词
       currentWords.value.splice(currentWordIndex.value, 1)
-      
+
       // 移除后检查是否还有单词
       if (currentWords.value.length === 0) {
         // 所有单词都已完成
         showCompletion.value = true
         return
       }
-      
+
       // 调整当前索引，如果移除的是最后一个单词，索引需要回退
       if (currentWordIndex.value >= currentWords.value.length) {
         currentWordIndex.value = 0 // 重新从第一个开始
       }
-      
+
       // 移除单词后直接生成当前单词的选项
-      generateCurrentOptions()
+      await generateCurrentOptions()
     } else {
       // 当前单词未完成，正常跳转到下一个单词
       if (currentWordIndex.value < currentWords.value.length - 1) {
         currentWordIndex.value++
-        generateCurrentOptions()
+        await generateCurrentOptions()
       } else {
         // 当前是最后一个单词，重新开始循环
         currentWordIndex.value = 0
-        generateCurrentOptions()
+        await generateCurrentOptions()
       }
     }
   }
 }
 
-// 保存当前单词数据到本地存储
-const saveCurrentWordData = () => {
+// 保存当前单词数据到 IndexedDB
+const saveCurrentWordData = async () => {
   const data = currentLevel.value === 'CET4' ? CET4Data : CET6Data
-  const allWords = parseWordData(data, currentLevel.value)
-  
+  const allWords = await parseWordData(data, currentLevel.value)
+
   // 更新对应单词的数据
   const wordToUpdate = allWords.find(w => w.word === currentWord.value.word)
   if (wordToUpdate) {
     Object.assign(wordToUpdate, currentWord.value)
   }
-  
-  // 保存到本地存储
-  saveWordsToStorage(currentLevel.value, allWords)
+
+  // 保存到 IndexedDB
+  await saveWordsToStorage(currentLevel.value, allWords)
 }
 
 // 开始新一轮学习
-const startNewRound = () => {
+const startNewRound = async () => {
   completedWordsList.value = []
-  initializeWords()
+  await initializeWords()
 }
 
 // 应用设置并重新开始
-const applySettings = () => {
-  saveSettings()
+const applySettings = async () => {
+  await saveSettingsToStorage()
   showSettings.value = false
   completedWordsList.value = []
-  initializeWords()
+  await initializeWords()
 }
 
 // 监听单词变化
-watch(() => currentWordIndex.value, () => {
+watch(() => currentWordIndex.value, async () => {
   if (currentWord.value) {
-    generateCurrentOptions()
+    await generateCurrentOptions()
   }
 })
 
@@ -568,9 +583,9 @@ watch(() => currentWords.value.length, (newLength) => {
 })
 
 // 组件挂载
-onMounted(() => {
-  loadSettings() // 先加载设置
-  initializeWords()
+onMounted(async () => {
+  await loadSettings() // 先加载设置
+  await initializeWords()
 })
 </script>
 
