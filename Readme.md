@@ -186,6 +186,7 @@ IndexedDB 存储服务核心模块，提供数据库初始化、连接管理和�
   - `settings`：应用设置，主键为 `key`
   - `diaryTemplates`：日记模板，主键为 `id`
 - 导出通用方法：`initDB`、`getDB`、`closeDB`、`get`、`getAll`、`put`、`putAll`、`remove`、`clear`、`getByIndex`、`count`
+- **响应式数据转换（2025-02-03 修复）**：`put` 和 `putAll` 方法在保存数据前，使用 `JSON.parse(JSON.stringify(data))` 将 Vue 3 的响应式 Proxy 对象转换为普通 JavaScript 对象，确保 IndexedDB 能够正确存储数据，避免 DataCloneError 错误
 
 ### storage/sentences.js
 

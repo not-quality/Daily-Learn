@@ -139,7 +139,9 @@ export const put = async (storeName, data) => {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(storeName, 'readwrite')
     const store = transaction.objectStore(storeName)
-    const request = store.put(data)
+    // 将响应式对象转换为普通对象，确保 IndexedDB 可以正确存储
+    const plainData = JSON.parse(JSON.stringify(data))
+    const request = store.put(plainData)
 
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
@@ -162,7 +164,9 @@ export const putAll = async (storeName, dataArray) => {
     transaction.onerror = () => reject(transaction.error)
 
     dataArray.forEach(data => {
-      store.put(data)
+      // 将响应式对象转换为普通对象，确保 IndexedDB 可以正确存储
+      const plainData = JSON.parse(JSON.stringify(data))
+      store.put(plainData)
     })
   })
 }
