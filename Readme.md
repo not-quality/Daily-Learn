@@ -27,7 +27,7 @@ Vue-Daily Learn/
 │  │  └─ counter.js              示例计数 Store（Pinia 使用示例）
 │  ├─ utils/                     工具函数与存储服务
 │  │  ├─ storage/                IndexedDB 存储服务模块
-│  │  │  ├─ index.js             数据库初始化与通用 CRUD 操作
+│  │  │  ├─ index.js             数据库初始化与通用 CRUD 操作（含 localStorage 降级机制）
 │  │  │  ├─ sentences.js         句子练习数据存储 API
 │  │  │  ├─ words.js             单词学习数据存储 API
 │  │  │  ├─ tasks.js             任务列表存储 API
@@ -43,6 +43,44 @@ Vue-Daily Learn/
 ├─ vite.config.js                Vite 构建与开发服务器配置
 └─ .gitignore                    Git 忽略文件配置
 ```
+
+---
+
+## 构建与部署说明
+
+### 1. H5 网页构建
+本项目已配置适配 H5 移动端网页构建，支持在任何 Web 服务器或本地静态服务中运行。
+
+**安装依赖**：
+```bash
+npm install
+```
+
+**构建生产环境文件**：
+```bash
+npm run build
+```
+构建完成后，生成的 `dist` 文件夹即为完整的 H5 网页应用。
+
+**本地预览**：
+```bash
+npm run preview
+```
+该命令会启动一个本地服务器，并支持通过局域网（手机连接同一 WiFi）访问预览。
+
+### 2. 移动端 App 打包 (HBuilderX)
+本项目支持使用 HBuilderX 打包为 Android/iOS 应用。
+
+**兼容性说明**：
+- **存储降级**：已在 `src/utils/storage/index.js` 中实现了智能降级机制。当运行在不支持 IndexedDB 的环境（如某些 WebView 或直接文件访问）时，系统会自动切换到 `localStorage` 存储，确保 App 不会白屏或崩溃。
+- **路由模式**：项目使用自定义页面切换逻辑，不依赖 history API，天然适配 App 打包（无需配置 Hash 模式）。
+
+**打包步骤**：
+1. 运行 `npm run build` 生成 `dist` 目录。
+2. 打开 HBuilderX，新建 `5+App` 项目。
+3. 将 `dist` 目录下的所有文件复制到 HBuilderX 项目根目录。
+4. 在 `manifest.json` 中配置应用名称、图标等信息。
+5. 选择 `发行` -> `原生App-云打包`。
 
 ---
 
@@ -99,149 +137,26 @@ Vue-Daily Learn/
 
 ### DailySentence.vue
 
-句子填空练习与句库管理组件，帮助练习中英文句子表达：
+每日句子学习模块：
 
-- 顶部导航可在「单词学习 / 句子练习 / 每日一记 / 往日迹忆 / 任务管理」间切换，当前页面为 `sentence`
-- 主练习区域按题目编号渲染句子：
-  - 上方展示中文句子与完成/删除按钮
-  - 下方根据英文句子词数自动生成输入框数组，支持按键切换焦点
-  - 点击「查看答案」切换显示完整英文句子，再次点击可收起
-- 使用 IndexedDB 管理句库：
-  - 首次运行时以内置 `initialSentences` 初始化本地数据
-  - 后续所有修改（新增、删除、完成状态等）都写回 IndexedDB
-- 支持添加自定义句子：
-  - 通过表单输入编号 / 中文句子 / 英文句子
-  - 自动校验编号唯一性与必填字段
-  - 添加成功后立即写入本地并刷新练习列表
-- 为长句子或按钮区域提供自动换行控制，避免布局抖动，并通过状态位（如 `chineseWrapped`、`buttonWrapped`）记录 UI 适配效果
+- 每日更新一句英语名言/句子
+- 支持查看释义和解析
+- 记录学习打卡状态
 
 ### DailyWords.vue
 
-单词选择题练习组件，使用四/六级词汇数据实现分组学习与进度追踪：
+单词记忆与练习模块：
 
-- 顶部导航与其他页面保持一致，用于切换到句子、日记、浏览、任务等模块
-- 依赖 `CET4.json` 与 `CET6.json` 提供词库数据，通过 `currentLevel` 在四级 / 六级之间切换
-- 每轮学习流程：
-  - 按配置的 `wordsPerGroup`（默认 10 个）抽取一组单词作为本轮题目
-  - 每个单词生成多项选择题，选项顺序打乱
-  - 记录用户选择、是否查看答案，以及每个单词的正确累计次数 `correctCount`
-- 当某个单词的正确次数达到阈值（如 3 次）后，认为该单词已掌握，计入 `masteredWords` 与 `completedWordsList`
-- 总览统计包括：学习单词总数、已掌握数量、答题次数与整体正确率 `correctRate`
-- 本地持久化（使用 IndexedDB）：
-  - 以 `level` 字段区分 CET4/CET6 存储各级别的单词学习进度
-  - 单词设置（每组单词数量等）存储在 settings store 中
-- 提供「学习设置」弹窗，可调整每组单词数量，并支持「应用并重新开始」快速刷新一轮新学习
-- UI 稳定性优化（2025-01-17 更新）：
-  - 为 `word-card` 设置固定最小高度（桌面端 620px，平板端 580px，手机端 550px，小屏手机端 520px），避免选项内容换行时卡片跳动
-  - 使用 Flexbox 布局将答题按钮 `action-buttons` 固定在卡片底部，通过 `margin-top: auto` 实现自动对齐
-  - 无论选项内容如何变化，卡片高度和按钮位置始终保持稳定，提升答题体验
+- 基于 CET4/CET6 词库进行单词学习
+- 支持单词拼写练习、选择题练习
+- 记录单词掌握程度和学习进度
+- 提供错题本功能，方便复习
 
 ### DiaryEntry.vue
 
-单条日记的富文本 / Markdown 编辑组件，支持图片与模板，作为 `每日一记` 的详细编辑页：
+单条日记编辑/查看页面：
 
-- 接收父组件传入的 `recordData`、`selectedDate` 和 `sourceView`，并在内部复制为可编辑的 `currentRecord`
-- 顶部工具栏：
-  - 返回按钮：触发 `emit('back')`，并将来源视图（记录页 / 浏览页）回传给父组件
-  - 保存按钮：通过 `emit('save')` 将当前记录数据回传，由父组件负责写入 IndexedDB
-- 三页面滑动架构（2025-01-17 更新）：
-  - 采用三页面架构（前一天、当天、后一天）同时渲染，通过滑动在页面间切换
-  - 前后页面添加了 Markdown 工具栏占位符，防止切换时因高度不一致导致的页面跳动
-  - 统一了三个页面的内容区域最小高度（桌面端 500px，移动端 400px），确保切换动画流畅
-- 手机端左右滑动切换日记：
-  - 支持在移动端通过左右滑动切换前后一天的日记（`touchstart / touchmove / touchend` 手势处理）
-  - 向右滑动切换到前一天，向左滑动切换到后一天
-  - 滑动阈值为屏幕宽度的 20%，只在非编辑状态下启用滑动功能
-  - 添加了日期边界限制：不允许滑动到未来日期（今天的日记无法左滑到明天）
-  - 滑动时有平滑的动画效果，提升用户体验
-- 图片管理：
-  - 通过「拍照」与「选择图片」按钮采集图片，并以 `images` 数组形式挂在记录上
-  - 支持点击图片全屏预览、在全屏预览中删除图片
-- 心情选择：
-  - 提供一组 emoji 作为心情选项
-  - 再次点击已选中的心情会清空心情，增强操作灵活性
-- Markdown 编辑体验：
-  - 提供 Markdown 工具栏按钮，一键插入标题、加粗、斜体、删除线、链接、列表、引用等标记
-  - 支持编辑模式与预览模式切换，预览中使用 `parseMarkdown` 将 Markdown 文本渲染为 HTML
-  - 占位文案会根据当前日期动态变化（今天/历史某日）
-- 模板系统：
-  - 允许维护多条日记模板，包含名称与内容
-  - 支持新建、编辑、删除模板，以及点击模板快速插入到当前内容中
-- 通过 dayjs 处理日期显示（如编辑头部日期、占位提示），并统一使用中文本地化
-
----
-
-## utils 目录下各模块说明
-
-### storage/index.js
-
-IndexedDB 存储服务核心模块，提供数据库初始化、连接管理和通用 CRUD 操作：
-
-- 数据库名称：`VueDailyLearnDB`，版本号：2
-- 创建并管理以下 Object Store：
-  - `sentences`：句子练习数据，主键为 `number`
-  - `words`：单词学习数据，复合主键 `[level, word]`
-  - `tasks`：任务列表，主键为 `_id`
-  - `diaryRecords`：日记记录，主键为 `id`（日期字符串）
-  - `settings`：应用设置，主键为 `key`
-  - `diaryTemplates`：日记模板，主键为 `id`
-- 导出通用方法：`initDB`、`getDB`、`closeDB`、`get`、`getAll`、`put`、`putAll`、`remove`、`clear`、`getByIndex`、`count`
-- **响应式数据转换（2025-02-03 修复）**：`put` 和 `putAll` 方法在保存数据前，使用 `JSON.parse(JSON.stringify(data))` 将 Vue 3 的响应式 Proxy 对象转换为普通 JavaScript 对象，确保 IndexedDB 能够正确存储数据，避免 DataCloneError 错误
-
-### storage/sentences.js
-
-句子练习数据存储 API：
-
-- `getAllSentences()`：获取所有句子
-- `saveSentence(sentence)`：保存单条句子
-- `saveAllSentences(sentences)`：批量保存句子
-- `deleteSentence(number)`：删除指定句子
-- `toggleSentenceComplete(number)`：切换句子完成状态
-
-### storage/words.js
-
-单词学习数据存储 API：
-
-- `getWordsByLevel(level)`：按级别（CET4/CET6）获取单词
-- `saveAllWords(words)`：批量保存单词（需包含 `level` 字段）
-- `getWord(level, word)`：获取单个单词数据
-- `saveWord(wordData)`：保存单个单词数据
-
-### storage/tasks.js
-
-任务列表存储 API：
-
-- `getAllTasks()`：获取所有任务
-- `saveAllTasks(tasks)`：批量保存任务
-- `saveTask(task)`：保存单条任务
-- `deleteTask(id)`：删除指定任务
-
-### storage/diary.js
-
-日记记录与模板存储 API：
-
-- `getAllDiaryRecords()`：获取所有日记（返回以日期为键的对象）
-- `getDiaryRecord(id)`：获取单条日记
-- `saveDiaryRecord(record)`：保存单条日记
-- `saveAllDiaryRecords(recordsObj)`：批量保存日记（接收对象格式）
-- `deleteDiaryRecord(id)`：删除指定日记
-- `getAllTemplates()`：获取所有日记模板
-- `saveAllTemplates(templates)`：批量保存模板
-
-### storage/settings.js
-
-应用设置存储 API：
-
-- `getWordsSettings()`：获取单词学习设置（每组单词数量等）
-- `saveWordsSettings(settings)`：保存单词学习设置
-- `getBrowseSettings()`：获取浏览页面设置（排序方式、视图模式）
-- `saveBrowseSettings(settings)`：保存浏览页面设置
-
-### migration.js
-
-localStorage → IndexedDB 数据迁移服务：
-
-- 应用首次启动时自动检测并执行迁移
-- 迁移完成后在 localStorage 中设置 `idb_migration_completed` 标记
-- 支持迁移的数据：句子、单词（CET4/CET6）、任务、日记、模板、各类设置
-- 导出方法：`needsMigration()`、`runMigration()`、`resetMigration()`（调试用）
+- 支持 Markdown 格式编辑
+- 支持选择心情 Emoji
+- 自动保存编辑内容
+- 适配移动端展示，优化输入体验
